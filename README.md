@@ -38,7 +38,7 @@ CLOUDINARY_API_SECRET="dQ0l4SVGXcxojesxk5K9VLN98ww"
 BETTER_AUTH_SECRET="LpfTRRfQSy0luhYPfgNDuGcSDUhXqLJL"
 BETTER_AUTH_URL="http://localhost:3000"
 
-RESEND_API_KEY="your-resend-api-key"
+RESEND_API_KEY="re_LeThRRgr_8pDGZBZVzndjF5r9am3hCcgR"
 ```
 
 For local development, copy the real `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `RESEND_API_KEY` values from your `.env` file. Do not commit real database URLs, auth secrets, or API keys.
