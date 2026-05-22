@@ -5,7 +5,7 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth";
 
 const app = express();
-const port = process.env.PORT || 4000;
+const port = process.env.PORT;
 const allowedOrigins = [process.env.FRONTEND_URL || "http://localhost:5173"];
 
 app.use(
