@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,35 +6,197 @@ datasource db {
   provider = "postgresql"
 }
 
+enum KycStatus {
+  not_submitted
+  submitted
+  under_review
+  additional_info_requested
+  approved
+  rejected
+}
+
+enum KycDocumentType {
+  national_id
+  passport
+  ier_license
+  indemnity_insurance
+  business_registration
+  tax_compliance
+  certification
+}
+
+enum KycDocumentStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ProjectStatus {
+  draft
+  active
+  paused
+  completed
+  terminated
+}
+
+enum MilestoneStatus {
+  pending
+  active
+  pending_supervisor
+  revision_required
+  awaiting_client_payment
+  paid
+}
+
+enum InspectionDecision {
+  approved
+  revision_required
+}
+
+enum RfqStatus {
+  open
+  closed
+  cancelled
+}
+
+enum QuoteStatus {
+  pending_selection
+  selected
+  rejected
+}
+
+enum PurchaseOrderStatus {
+  issued
+  accepted
+  shipped
+  completed
+}
+
+enum DeliveryStatus {
+  preparing
+  in_transit
+  delivered
+  pending_confirmation
+  confirmed
+  rejected
+}
+
+enum TransactionType {
+  deposit
+  release
+  refund
+  freeze
+  unfreeze
+  auto_payment
+  penalty
+}
+
+enum TransactionStatus {
+  pending
+  completed
+  failed
+  reversed
+}
+
+enum PaymentMethod {
+  mtn_momo
+  airtel_money
+  bank_transfer
+}
+
+enum DisputeStatus {
+  open
+  under_review
+  resolved_full_payment
+  resolved_partial
+  resolved_refund
+  resolved_termination
+  closed
+}
+
+enum DisputeCategory {
+  quality
+  timeline
+  cost
+  other
+}
+
+enum NotificationChannel {
+  push
+  email
+  sms
+  in_app
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  delivered
+  failed
+  read
+}
+
+enum AssignmentStatus {
+  pending
+  accepted
+  declined
+  removed
+}
+
 model User {
   id                  String    @id
   name                String
-  email               String
+  email               String    @unique
   emailVerified       Boolean   @default(false)
   image               String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
-  role                String?
+  role                String    @default("client")
   banned              Boolean?  @default(false)
   banReason           String?
   banExpires          DateTime?
-  username            String?
+  username            String?   @unique
   displayUsername     String?
-  phoneNumber         String?
+  phoneNumber         String?   @unique
   phoneNumberVerified Boolean?
-  sessions            Session[]
-  accounts            Account[]
+  fcmToken            String?
+  kycStatus           KycStatus @default(not_submitted)
+  kycSubmittedAt      DateTime?
+  kycReviewedAt       DateTime?
+  kycRejectionReason  String?
+  lastLoginAt         DateTime?
+  notificationPrefs   Json      @default("{}")
 
-  @@unique([email])
-  @@unique([username])
-  @@unique([phoneNumber])
+  sessions             Session[]
+  accounts             Account[]
+  kycDocuments         KycDocument[]
+  clientProjects       Project[]             @relation("ClientProjects")
+  engineerProjects     Project[]             @relation("EngineerProjects")
+  projectMembers       ProjectMember[]
+  milestonesCreated    Milestone[]
+  rfqsCreated          Rfq[]
+  quotesSubmitted      Quote[]
+  purchaseOrders       PurchaseOrder[]
+  deliveries           Delivery[]
+  progressPhotos       ProgressPhoto[]
+  inspections          Inspection[]
+  disputesRaised       Dispute[]             @relation("DisputeRaisedBy")
+  disputeEvidence      DisputeEvidence[]
+  transactions         Transaction[]
+  notifications        Notification[]
+  sentMessages         Message[]
+  auditLogs            AuditLog[]
+  activityLogs         ActivityLog[]
+  apiKeys              ApiKey[]
+  @@index([role])
+  @@index([kycStatus])
   @@map("user")
 }
 
 model Session {
   id             String   @id
   expiresAt      DateTime
-  token          String
+  token          String   @unique
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   ipAddress      String?
@@ -44,7 +205,6 @@ model Session {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   impersonatedBy String?
 
-  @@unique([token])
   @@index([userId])
   @@map("session")
 }
@@ -79,4 +239,463 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model KycDocument {
+  id            String            @id @default(cuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          KycDocumentType
+  cloudinaryUrl String
+  publicId      String
+  status        KycDocumentStatus @default(pending)
+  reviewNote    String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@map("kyc_document")
+}
+
+model Project {
+  id                 String        @id @default(cuid())
+  name               String
+  description        String?
+  status             ProjectStatus @default(draft)
+  budget             Decimal       @db.Decimal(15, 2)
+  currency           String        @default("RWF")
+  address            String?
+  gpsBoundary        Json?
+  sitePhotos         Json          @default("[]")
+  architecturalPlans Json          @default("[]")
+  startDate          DateTime?
+  endDate            DateTime?
+  clientId           String
+  client             User          @relation("ClientProjects", fields: [clientId], references: [id])
+  engineerId         String?
+  engineer           User?         @relation("EngineerProjects", fields: [engineerId], references: [id])
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  milestones    Milestone[]
+  escrowAccount EscrowAccount?
+  projectMembers ProjectMember[]
+  rfqs          Rfq[]
+  progressPhotos ProgressPhoto[]
+  disputes      Dispute[]
+  messages      Message[]
+  auditLogs     AuditLog[]
+
+  @@index([clientId])
+  @@index([engineerId])
+  @@index([status])
+  @@map("project")
+}
+
+model ProjectMember {
+  id          String           @id @default(cuid())
+  projectId   String
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String
+  status      AssignmentStatus @default(pending)
+  invitedAt   DateTime         @default(now())
+  acceptedAt  DateTime?
+  removedAt   DateTime?
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@index([status])
+  @@map("project_member")
+}
+
+model EscrowAccount {
+  id            String    @id @default(cuid())
+  projectId     String    @unique
+  project       Project   @relation(fields: [projectId], references: [id])
+  balance       Decimal   @default(0) @db.Decimal(15, 2)
+  lockedBalance Decimal   @default(0) @db.Decimal(15, 2)
+  currency      String    @default("RWF")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  transactions Transaction[]
+
+  @@map("escrow_account")
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  escrowAccountId String
+  escrowAccount   EscrowAccount     @relation(fields: [escrowAccountId], references: [id])
+  milestoneId     String?
+  milestone       Milestone?        @relation(fields: [milestoneId], references: [id])
+  actorId         String
+  actor           User              @relation(fields: [actorId], references: [id])
+  type            TransactionType
+  method          PaymentMethod?
+  amount          Decimal           @db.Decimal(15, 2)
+  status          TransactionStatus @default(pending)
+  reference       String?
+  metadata        Json?
+  completedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([escrowAccountId])
+  @@index([milestoneId])
+  @@index([actorId])
+  @@index([status])
+  @@map("transaction")
+}
+
+model Milestone {
+  id                 String          @id @default(cuid())
+  projectId          String
+  project            Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  engineerId         String
+  engineer           User            @relation(fields: [engineerId], references: [id])
+  name               String
+  description        String?
+  budgetPercentage   Decimal         @db.Decimal(5, 2)
+  durationDays       Int?
+  acceptanceCriteria String?
+  dependsOn          String?
+  order              Int
+  status             MilestoneStatus @default(pending)
+  completedAt        DateTime?
+  paidAt             DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  boqItems       BoqItem[]
+  inspections    Inspection[]
+  rfqs           Rfq[]
+  transactions   Transaction[]
+  progressPhotos ProgressPhoto[]
+  disputes       Dispute[]
+
+  @@index([projectId])
+  @@index([engineerId])
+  @@index([status])
+  @@map("milestone")
+}
+
+model BoqItem {
+  id          String    @id @default(cuid())
+  milestoneId String
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  category    String
+  name        String
+  quantity    Decimal   @db.Decimal(10, 2)
+  unit        String
+  unitPrice   Decimal   @db.Decimal(15, 2)
+  totalPrice  Decimal   @db.Decimal(15, 2)
+  actualCost  Decimal?  @db.Decimal(15, 2)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([milestoneId])
+  @@map("boq_item")
+}
+
+model Rfq {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id])
+  milestoneId     String
+  milestone       Milestone @relation(fields: [milestoneId], references: [id])
+  engineerId      String
+  engineer        User      @relation(fields: [engineerId], references: [id])
+  title           String
+  specs           Json      @default("{}")
+  quantity        Decimal   @db.Decimal(10, 2)
+  unit            String
+  deadline        DateTime
+  status          RfqStatus @default(open)
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  quotes        Quote[]
+  purchaseOrder PurchaseOrder?
+
+  @@index([projectId])
+  @@index([milestoneId])
+  @@index([status])
+  @@map("rfq")
+}
+
+model Quote {
+  id             String      @id @default(cuid())
+  rfqId          String
+  rfq            Rfq         @relation(fields: [rfqId], references: [id])
+  supplierId     String
+  supplier       User        @relation(fields: [supplierId], references: [id])
+  unitPrice      Decimal     @db.Decimal(15, 2)
+  totalPrice     Decimal     @db.Decimal(15, 2)
+  deliveryDays   Int
+  warrantyMonths Int?
+  terms          String?
+  certUrls       Json        @default("[]")
+  status         QuoteStatus @default(pending_selection)
+  selectedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  purchaseOrder PurchaseOrder?
+
+  @@index([rfqId])
+  @@index([supplierId])
+  @@index([status])
+  @@map("quote")
+}
+
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  rfqId       String              @unique
+  rfq         Rfq                 @relation(fields: [rfqId], references: [id])
+  quoteId     String              @unique
+  quote       Quote               @relation(fields: [quoteId], references: [id])
+  supplierId  String
+  supplier    User                @relation(fields: [supplierId], references: [id])
+  poNumber    String              @unique
+  cloudinaryUrl String
+  status      PurchaseOrderStatus @default(issued)
+  issuedAt    DateTime            @default(now())
+  acceptedAt  DateTime?
+  completedAt DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  deliveries Delivery[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@map("purchase_order")
+}
+
+model Delivery {
+  id              String         @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id])
+  supplierId      String
+  supplier        User           @relation(fields: [supplierId], references: [id])
+  status          DeliveryStatus @default(preparing)
+  startGps        Json?
+  endGps          Json?
+  proofPhotos     Json           @default("[]")
+  notes           String?
+  rejectionReason String?
+  startedAt       DateTime?
+  arrivedAt       DateTime?
+  confirmedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([purchaseOrderId])
+  @@index([supplierId])
+  @@index([status])
+  @@map("delivery")
+}
+
+model ProgressPhoto {
+  id           String    @id @default(cuid())
+  projectId    String
+  project      Project   @relation(fields: [projectId], references: [id])
+  milestoneId  String?
+  milestone    Milestone? @relation(fields: [milestoneId], references: [id])
+  uploadedById String
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+  cloudinaryUrl String
+  publicId     String
+  gpsLocation  Json?
+  caption      String?
+  isVideo      Boolean   @default(false)
+  videoDuration Int?
+  createdAt    DateTime  @default(now())
+
+  @@index([projectId])
+  @@index([milestoneId])
+  @@index([createdAt])
+  @@map("progress_photo")
+}
+
+model Inspection {
+  id            String              @id @default(cuid())
+  milestoneId   String
+  milestone     Milestone           @relation(fields: [milestoneId], references: [id])
+  supervisorId  String
+  supervisor    User                @relation(fields: [supervisorId], references: [id])
+  checklist     Json                @default("{}")
+  photos        Json                @default("[]")
+  rating        Int?
+  signatureUrl  String?
+  notes         String?
+  decision      InspectionDecision?
+  attemptNumber Int                 @default(1)
+  signedAt      DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([milestoneId])
+  @@index([supervisorId])
+  @@map("inspection")
+}
+
+model Dispute {
+  id               String          @id @default(cuid())
+  projectId        String
+  project          Project         @relation(fields: [projectId], references: [id])
+  milestoneId      String?
+  milestone        Milestone?      @relation(fields: [milestoneId], references: [id])
+  raisedById       String
+  raisedBy         User            @relation("DisputeRaisedBy", fields: [raisedById], references: [id])
+  category         DisputeCategory
+  description      String
+  status           DisputeStatus   @default(open)
+  amountInDispute  Decimal         @db.Decimal(15, 2)
+  resolution       Json?
+  resolvedAt       DateTime?
+  resolvedBy       String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  evidence DisputeEvidence[]
+
+  @@index([projectId])
+  @@index([milestoneId])
+  @@index([status])
+  @@map("dispute")
+}
+
+model DisputeEvidence {
+  id            String   @id @default(cuid())
+  disputeId     String
+  dispute       Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  uploadedById  String
+  uploadedBy    User     @relation(fields: [uploadedById], references: [id])
+  cloudinaryUrl String
+  description   String?
+  createdAt     DateTime @default(now())
+
+  @@index([disputeId])
+  @@map("dispute_evidence")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  content   String
+  photoUrl  String?
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@index([senderId])
+  @@map("message")
+}
+
+model Notification {
+  id            String              @id @default(cuid())
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel       NotificationChannel
+  title         String
+  body          String
+  data          Json                @default("{}")
+  status        NotificationStatus  @default(pending)
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  failureReason String?
+  createdAt     DateTime            @default(now())
+
+  @@index([userId])
+  @@index([userId, status])
+  @@map("notification")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id])
+  action      String
+  entityType  String
+  entityId    String?
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  result      String
+  createdAt   DateTime @default(now())
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activity_log")
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  keyHash     String    @unique
+  prefix      String
+  permissions Json      @default("[]")
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@map("api_key")
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_setting")
+}
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  subject     String
+  htmlContent String
+  plainText   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("email_template")
 }

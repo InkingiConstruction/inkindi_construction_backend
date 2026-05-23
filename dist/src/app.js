@@ -1,5 +1,5 @@
 import "dotenv/config";
-import express, { Request, Response } from "express";
+import express from "express";
 import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth";
@@ -29,60 +29,20 @@ import activityLogRoutes from "./routes/activity-log.route";
 import apiKeyRoutes from "./routes/api-key.route";
 import systemSettingRoutes from "./routes/system-setting.route";
 import emailTemplateRoutes from "./routes/email-template.route";
-
 const app = express();
 const port = process.env.PORT;
-const isProduction = process.env.NODE_ENV === "production";
-const envAllowedOrigins = (process.env.CORS_ORIGINS || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:5173",
-  "http://localhost:8081",
-  "http://192.168.1.171:8081",
-  process.env.FRONTEND_URL,
-  process.env.MOBILE_URL,
-  ...envAllowedOrigins,
-].filter(Boolean) as string[];
-
-const devOriginPattern =
-  /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/;
-
-function isAllowedOrigin(origin: string) {
-  return (
-    allowedOrigins.includes(origin) ||
-    (!isProduction && devOriginPattern.test(origin))
-  );
-}
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-
-      if (isAllowedOrigin(origin)) {
-        callback(null, true);
-      } else {        
-        console.log(`Blocked origin: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+const allowedOrigins = [process.env.FRONTEND_URL || "http://localhost:5173"];
+app.use(cors({
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  }),
-);
-
+}));
 app.all("/api/auth/*splat", toNodeHandler(auth));
-
 app.use(express.json());
-
-app.get("/", (_req: Request, res: Response) => {
-  res.send("Inkingi API is Live! 🚀");
+app.get("/", (_req, res) => {
+    res.send("Inkingi API is Live! 🚀");
 });
-
 app.use("/api/kyc", kycRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/sessions", sessionRoutes);
@@ -109,7 +69,6 @@ app.use("/api/activity-logs", activityLogRoutes);
 app.use("/api/api-keys", apiKeyRoutes);
 app.use("/api/system-settings", systemSettingRoutes);
 app.use("/api/email-templates", emailTemplateRoutes);
-
 app.listen(Number(port), "0.0.0.0", () => {
-  console.log("Server is running at http://0.0.0.0:" + port);
+    console.log("Server is running at http://0.0.0.0:" + port);
 });

@@ -1,0 +1,20 @@
+import { Router } from "express";
+import {
+  createMessage,
+  deleteMessage,
+  getMessageById,
+  getMessages,
+  updateMessage,
+} from "../controllers/message.controller";
+import { requiredAuth } from "../middleware/auth.middleware";
+import { requireRole } from "../middleware/role.middleware";
+
+const router = Router();
+
+router.post("/", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), createMessage);
+router.get("/", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), getMessages);
+router.get("/:id", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), getMessageById);
+router.put("/:id", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), updateMessage);
+router.delete("/:id", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), deleteMessage);
+
+export default router;
