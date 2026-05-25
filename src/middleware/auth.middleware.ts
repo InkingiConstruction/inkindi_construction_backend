@@ -18,6 +18,7 @@ export const requiredAuth = async (
 
     req.session = session;
     req.user = session.user;
+    req.role = session.user.role;
 
     next();
   } catch (error) {

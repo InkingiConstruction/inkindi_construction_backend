@@ -7,6 +7,7 @@ declare global {
     interface Request {
       session?: BetterAuthSession;
       user?: BetterAuthSession["user"];
+      role?: BetterAuthSession["user"]["role"];
     }
   }
 }

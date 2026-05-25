@@ -4,7 +4,11 @@ export const requireRole =
   (...roles: string[]) =>
   (req: Request, res: Response, next: NextFunction) => {
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "Forbidden" });
+      return res.status(403).json({
+        message: "Forbidden",
+        requiredRoles: roles,
+        currentRole: req.user.role,
+      });
     }
     next();
   };
