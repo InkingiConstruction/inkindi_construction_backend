@@ -4,6 +4,7 @@ import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth";
 import v1Routes from "./api/v1";
+import { emailSignInLockout } from "./api/v1/middleware/auth-security.middleware";
 
 const app = express();
 const port = process.env.PORT;
@@ -58,6 +59,7 @@ app.use("/api/v1/auth", (req, _res, next) => {
   next();
 });
 
+app.post("/api/v1/auth/sign-in/email", express.json(), emailSignInLockout);
 app.all("/api/v1/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());

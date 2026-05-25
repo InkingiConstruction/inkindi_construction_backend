@@ -17,6 +17,11 @@ const envTrustedOrigins = (process.env.CORS_ORIGINS || "")
 
 export const auth = betterAuth({
   basePath: "/api/v1/auth",
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+  },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),

@@ -1,5 +1,6 @@
 import { auth } from "../../../lib/auth";
 import { fromNodeHeaders } from "better-auth/node";
+import { authenticatedUserRateLimit } from "./auth-security.middleware";
 export const requiredAuth = async (req, res, next) => {
     try {
         const session = await auth.api.getSession({
@@ -11,7 +12,7 @@ export const requiredAuth = async (req, res, next) => {
         req.session = session;
         req.user = session.user;
         req.role = session.user.role;
-        next();
+        authenticatedUserRateLimit(req, res, next);
     }
     catch (error) {
         next(error);

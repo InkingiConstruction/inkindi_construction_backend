@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { auth } from "../../../lib/auth";
 import { fromNodeHeaders } from "better-auth/node";
+import { authenticatedUserRateLimit } from "./auth-security.middleware";
 
 export const requiredAuth = async (
   req: Request,
@@ -20,7 +21,7 @@ export const requiredAuth = async (
     req.user = session.user;
     req.role = session.user.role;
 
-    next();
+    authenticatedUserRateLimit(req, res, next);
   } catch (error) {
     next(error);
   }
