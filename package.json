@@ -2,10 +2,11 @@
   "name": "inkindi_construction_backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/src/app.js",
   "scripts": {
-    "start": "tsx src/app.ts",
+    "start": "node dist/src/app.js",
     "dev": "nodemon --exec tsx src/app.ts",
+    "render-build": "prisma generate && tsc",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
