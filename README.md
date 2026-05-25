@@ -23,6 +23,100 @@ Express and TypeScript backend for the Inkingi Construction application. The API
 npm install
 ```
 
+## How The System Works From Scratch
+
+1. A user creates an account and signs in through Better Auth using `/api/v1/auth`.
+
+2. The user verifies email and phone number before submitting KYC documents.
+
+3. The user uploads KYC documents with `POST /api/v1/kyc/documents`.
+
+4. Required KYC documents depend on the user role:
+   - Client uploads National ID or Passport.
+   - Engineer uploads National ID or Passport, IER License, and Professional Indemnity Insurance.
+   - Supervisor uploads National ID or Passport, Professional Indemnity Insurance, and Certification.
+   - Supplier uploads National ID or Passport, Business Registration Certificate, and Tax Compliance Certificate.
+
+5. Admin reviews KYC from `/api/v1/kyc/pending` and approves or rejects using:
+   - `POST /api/v1/kyc/:userId/approve`
+   - `POST /api/v1/kyc/:userId/reject`
+
+6. The user receives email and push notification when KYC is approved or rejected.
+
+7. A client creates a project with `POST /api/v1/projects`. Project images and architectural plans are uploaded to Cloudinary.
+
+8. The client views available engineers with `GET /api/v1/users/engineers`.
+
+9. The client assigns an engineer to the project using `POST /api/v1/project-members`.
+
+10. The engineer receives a push notification and can accept or reject the assignment:
+    - `POST /api/v1/project-members/:id/accept`
+    - `POST /api/v1/project-members/:id/reject`
+
+11. When the engineer accepts, the project gets that engineer as the active engineer.
+
+12. The accepted engineer creates milestones with `POST /api/v1/milestones`.
+
+13. The engineer creates BOQ items for each milestone with `POST /api/v1/boq-items`.
+
+14. The engineer uploads progress photos or videos with `POST /api/v1/progress-photos`.
+
+15. Project participants receive push notifications when progress is uploaded.
+
+16. A supervisor inspects milestone progress using `POST /api/v1/inspections`.
+
+17. If the supervisor approves the inspection, the milestone status becomes `awaiting_client_payment`.
+
+18. If the supervisor requests revision, the milestone status becomes `revision_required`.
+
+19. The client or admin creates an escrow account for the project with `POST /api/v1/escrow-accounts`.
+
+20. The client deposits money into escrow with `POST /api/v1/transactions` using transaction type `deposit`.
+
+21. After inspection approval, the client releases milestone payment with transaction type `release`.
+
+22. When release is completed, the milestone becomes `paid`.
+
+23. For material procurement, the engineer creates an RFQ with `POST /api/v1/rfqs`.
+
+24. Suppliers receive push notifications when a new RFQ is created.
+
+25. Suppliers submit quotes with `POST /api/v1/quotes`.
+
+26. The engineer selects a quote by updating the quote status to `selected`.
+
+27. When a quote is selected, other quotes for the same RFQ are rejected.
+
+28. The engineer creates a purchase order from the selected quote using `POST /api/v1/purchase-orders`.
+
+29. The supplier receives a push notification and accepts the purchase order.
+
+30. The supplier creates a delivery with `POST /api/v1/deliveries`.
+
+31. The supplier updates delivery status as materials move through the delivery process.
+
+32. The client or engineer confirms or rejects delivery.
+
+33. When delivery is confirmed, the purchase order becomes `completed`.
+
+34. If something goes wrong, a client, engineer, or supplier creates a dispute with `POST /api/v1/disputes`.
+
+35. Dispute evidence is uploaded with `POST /api/v1/dispute-evidence`.
+
+36. Admin reviews and resolves disputes by updating the dispute status and resolution.
+
+37. Project participants can communicate through project messages using `POST /api/v1/messages`.
+
+38. Every important workflow event creates an in-app notification and sends an Expo push notification when the user has registered a valid Expo token.
+
+39. Mobile users register Expo push tokens with `POST /api/v1/notifications/expo-token`.
+
+40. Admin can manage audit logs, activity logs, API keys, system settings, email templates, sessions, accounts, and verification records through the `/api/v1` admin routes.
+
+41. Admin can run KYC expiry checks with `POST /api/v1/kyc/expiry/check`.
+
+42. Swagger documentation is available at `/api/v1/docs`.
+
 ### 2. Configure environment variables
 
 Create a `.env` file in the backend root:
