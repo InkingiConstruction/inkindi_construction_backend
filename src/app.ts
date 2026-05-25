@@ -62,7 +62,7 @@ app.all("/api/v1/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
 
-app.get("/", (_req: Request, res: Response) => {
+app.get("/health", (_req: Request, res: Response) => {
   res.send("Inkingi API is Live! 🚀");
 });
 
