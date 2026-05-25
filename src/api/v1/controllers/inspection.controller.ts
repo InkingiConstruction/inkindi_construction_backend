@@ -3,6 +3,7 @@ import { InspectionDecision, Prisma } from "@prisma/client";
 import { UploadApiResponse } from "cloudinary";
 import cloudinary from "../../../lib/cloudinary.js";
 import prisma from "../../../lib/prisma.js";
+import { notifyProjectParticipants } from "../../../lib/notifications.js";
 
 type InspectionPhoto = {
   cloudinaryUrl: string;
@@ -267,6 +268,21 @@ export const createInspection = async (req: Request, res: Response) => {
       return createdInspection;
     });
 
+    if (decision) {
+      await notifyProjectParticipants({
+        projectId: inspection.milestone.projectId,
+        excludeUserId: req.user.id,
+        title: "Milestone inspected",
+        body: `${inspection.milestone.name} inspection result: ${decision}`,
+        data: {
+          milestoneId: inspection.milestoneId,
+          inspectionId: inspection.id,
+          decision,
+          type: "inspection_decision",
+        },
+      });
+    }
+
     return res.status(201).json({
       message: "Inspection created successfully",
       inspection,
@@ -502,6 +518,21 @@ export const updateInspection = async (req: Request, res: Response) => {
 
       return updatedInspection;
     });
+
+    if (decision) {
+      await notifyProjectParticipants({
+        projectId: inspection.milestone.projectId,
+        excludeUserId: req.user.id,
+        title: "Inspection updated",
+        body: `${inspection.milestone.name} inspection result: ${decision}`,
+        data: {
+          milestoneId: inspection.milestoneId,
+          inspectionId: inspection.id,
+          decision,
+          type: "inspection_decision_updated",
+        },
+      });
+    }
 
     return res.json({
       message: "Inspection updated successfully",

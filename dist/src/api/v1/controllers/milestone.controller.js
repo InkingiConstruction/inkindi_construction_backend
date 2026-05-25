@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteMilestone = exports.updateMilestone = exports.getMilestoneById = exports.getMilestones = exports.createMilestone = void 0;
 const client_1 = require("@prisma/client");
 const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const canReadProjectMilestones = (project, userId, role) => {
     if (role === "admin")
@@ -149,6 +150,16 @@ const createMilestone = async (req, res) => {
                         role: true,
                     },
                 },
+            },
+        });
+        await (0, notifications_js_1.notifyUser)({
+            userId: milestone.project.clientId,
+            title: "New milestone created",
+            body: `${milestone.name} was added to ${milestone.project.name}`,
+            data: {
+                projectId: milestone.projectId,
+                milestoneId: milestone.id,
+                type: "milestone_created",
             },
         });
         return res.status(201).json({
@@ -347,6 +358,19 @@ const updateMilestone = async (req, res) => {
                 },
             },
         });
+        if (req.body.status !== undefined) {
+            await (0, notifications_js_1.notifyProjectParticipants)({
+                projectId: milestone.projectId,
+                excludeUserId: req.user.id,
+                title: "Milestone status updated",
+                body: `${milestone.name} is now ${milestone.status}`,
+                data: {
+                    milestoneId: milestone.id,
+                    status: milestone.status,
+                    type: "milestone_status_updated",
+                },
+            });
+        }
         return res.json({
             message: "Milestone updated successfully",
             milestone,

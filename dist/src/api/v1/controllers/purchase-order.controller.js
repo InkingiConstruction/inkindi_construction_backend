@@ -7,6 +7,7 @@ exports.deletePurchaseOrder = exports.updatePurchaseOrder = exports.getPurchaseO
 const client_1 = require("@prisma/client");
 const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
 const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const isPurchaseOrderStatus = (value) => typeof value === "string" &&
     Object.values(client_1.PurchaseOrderStatus).includes(value);
@@ -125,6 +126,16 @@ const createPurchaseOrder = async (req, res) => {
                 data: { status: "closed" },
             });
             return createdPurchaseOrder;
+        });
+        await (0, notifications_js_1.notifyUser)({
+            userId: purchaseOrder.supplierId,
+            title: "Purchase order issued",
+            body: `Purchase order ${purchaseOrder.poNumber} was issued to you`,
+            data: {
+                purchaseOrderId: purchaseOrder.id,
+                rfqId: purchaseOrder.rfqId,
+                type: "purchase_order_issued",
+            },
         });
         return res.status(201).json({
             message: "Purchase order created successfully",
@@ -317,6 +328,19 @@ const updatePurchaseOrder = async (req, res) => {
                 deliveries: true,
             },
         });
+        if (status) {
+            await (0, notifications_js_1.notifyProjectParticipants)({
+                projectId: purchaseOrder.rfq.projectId,
+                excludeUserId: req.user.id,
+                title: "Purchase order updated",
+                body: `${purchaseOrder.poNumber} is now ${purchaseOrder.status}`,
+                data: {
+                    purchaseOrderId: purchaseOrder.id,
+                    status: purchaseOrder.status,
+                    type: "purchase_order_status_updated",
+                },
+            });
+        }
         return res.json({
             message: "Purchase order updated successfully",
             purchaseOrder,

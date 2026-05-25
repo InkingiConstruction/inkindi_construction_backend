@@ -8,6 +8,7 @@ import {
   kycApprovedTemplate,
   kycRejectedTemplate,
 } from "../../../utils/email-tempelates.js";
+import { notifyUser } from "../../../lib/notifications.js";
 
 const requiredDocuments: Record<string, KycDocumentType[]> = {
   client: ["national_id"],
@@ -388,6 +389,12 @@ export const approveKyc = async (
 
     const template = kycApprovedTemplate(updatedUser.name);
     await sendEmail({ to: updatedUser.email, ...template });
+    await notifyUser({
+      userId: updatedUser.id,
+      title: "KYC approved",
+      body: "Your identity verification was approved",
+      data: { type: "kyc_approved" },
+    });
 
     return res.json({ message: "KYC approved successfully" });
   } catch (error) {
@@ -440,6 +447,12 @@ export const rejectKyc = async (
 
     const template = kycRejectedTemplate(updatedUser.name, reason);
     await sendEmail({ to: updatedUser.email, ...template });
+    await notifyUser({
+      userId: updatedUser.id,
+      title: "KYC rejected",
+      body: reason,
+      data: { type: "kyc_rejected" },
+    });
 
     return res.json({ message: "KYC rejected successfully" });
   } catch (error) {

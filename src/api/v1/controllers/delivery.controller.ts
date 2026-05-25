@@ -3,6 +3,7 @@ import { DeliveryStatus, Prisma } from "@prisma/client";
 import { UploadApiResponse } from "cloudinary";
 import cloudinary from "../../../lib/cloudinary.js";
 import prisma from "../../../lib/prisma.js";
+import { notifyProjectParticipants } from "../../../lib/notifications.js";
 
 type ProofPhoto = {
   cloudinaryUrl: string;
@@ -202,6 +203,18 @@ export const createDelivery = async (req: Request, res: Response) => {
             role: true,
           },
         },
+      },
+    });
+
+    await notifyProjectParticipants({
+      projectId: delivery.purchaseOrder.rfq.projectId,
+      excludeUserId: req.user.id,
+      title: "Delivery created",
+      body: `Delivery for ${delivery.purchaseOrder.poNumber} is ${delivery.status}`,
+      data: {
+        deliveryId: delivery.id,
+        purchaseOrderId: delivery.purchaseOrderId,
+        type: "delivery_created",
       },
     });
 
@@ -481,6 +494,21 @@ export const updateDelivery = async (req: Request, res: Response) => {
 
       return updatedDelivery;
     });
+
+    if (status) {
+      await notifyProjectParticipants({
+        projectId: delivery.purchaseOrder.rfq.projectId,
+        excludeUserId: req.user.id,
+        title: "Delivery updated",
+        body: `Delivery for ${delivery.purchaseOrder.poNumber} is ${delivery.status}`,
+        data: {
+          deliveryId: delivery.id,
+          purchaseOrderId: delivery.purchaseOrderId,
+          status: delivery.status,
+          type: "delivery_status_updated",
+        },
+      });
+    }
 
     return res.json({
       message: "Delivery updated successfully",

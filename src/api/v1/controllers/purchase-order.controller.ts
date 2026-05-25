@@ -3,6 +3,7 @@ import { PurchaseOrderStatus } from "@prisma/client";
 import { UploadApiResponse } from "cloudinary";
 import cloudinary from "../../../lib/cloudinary.js";
 import prisma from "../../../lib/prisma.js";
+import { notifyProjectParticipants, notifyUser } from "../../../lib/notifications.js";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -168,6 +169,17 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
       });
 
       return createdPurchaseOrder;
+    });
+
+    await notifyUser({
+      userId: purchaseOrder.supplierId,
+      title: "Purchase order issued",
+      body: `Purchase order ${purchaseOrder.poNumber} was issued to you`,
+      data: {
+        purchaseOrderId: purchaseOrder.id,
+        rfqId: purchaseOrder.rfqId,
+        type: "purchase_order_issued",
+      },
     });
 
     return res.status(201).json({
@@ -380,6 +392,20 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
         deliveries: true,
       },
     });
+
+    if (status) {
+      await notifyProjectParticipants({
+        projectId: purchaseOrder.rfq.projectId,
+        excludeUserId: req.user.id,
+        title: "Purchase order updated",
+        body: `${purchaseOrder.poNumber} is now ${purchaseOrder.status}`,
+        data: {
+          purchaseOrderId: purchaseOrder.id,
+          status: purchaseOrder.status,
+          type: "purchase_order_status_updated",
+        },
+      });
+    }
 
     return res.json({
       message: "Purchase order updated successfully",

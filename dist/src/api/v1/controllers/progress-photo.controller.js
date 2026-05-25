@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteProgressPhoto = exports.updateProgressPhoto = exports.getProgressPhotoById = exports.getProgressPhotos = exports.createProgressPhoto = void 0;
 const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
 const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const uploadMedia = (file) => new Promise((resolve, reject) => {
     const stream = cloudinary_js_1.default.uploader.upload_stream({
@@ -133,6 +134,16 @@ const createProgressPhoto = async (req, res) => {
                 },
             });
         }));
+        await (0, notifications_js_1.notifyProjectParticipants)({
+            projectId: project.id,
+            excludeUserId: req.user.id,
+            title: "Progress uploaded",
+            body: `${req.user.name} uploaded ${progressPhotos.length} progress item(s)`,
+            data: {
+                milestoneId: milestoneId || undefined,
+                type: "progress_uploaded",
+            },
+        });
         return res.status(201).json({
             message: "Progress media uploaded successfully",
             progressPhotos,

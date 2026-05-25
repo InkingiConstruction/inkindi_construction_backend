@@ -1,24 +1,58 @@
 import { Request, Response } from "express";
+import { KycStatus, Prisma } from "@prisma/client";
 import prisma from "../../../lib/prisma.js";
 
-export const getEngineers = async (req: Request, res: Response) => {
+const getId = (id: string | string[] | undefined) =>
+  Array.isArray(id) ? id[0] : id;
+
+const parseJson = (value: unknown) => {
+  if (!value) return undefined;
+  if (typeof value !== "string") return value as Prisma.InputJsonValue;
+
+  try {
+    return JSON.parse(value) as Prisma.InputJsonValue;
+  } catch {
+    return value;
+  }
+};
+
+const selectUser = {
+  id: true,
+  name: true,
+  email: true,
+  emailVerified: true,
+  image: true,
+  role: true,
+  banned: true,
+  banReason: true,
+  banExpires: true,
+  username: true,
+  displayUsername: true,
+  phoneNumber: true,
+  phoneNumberVerified: true,
+  fcmToken: true,
+  kycStatus: true,
+  kycSubmittedAt: true,
+  kycReviewedAt: true,
+  kycRejectionReason: true,
+  lastLoginAt: true,
+  notificationPrefs: true,
+  createdAt: true,
+  updatedAt: true,
+};
+
+const isKycStatus = (value: unknown): value is KycStatus =>
+  typeof value === "string" &&
+  Object.values(KycStatus).includes(value as KycStatus);
+
+export const getEngineers = async (_req: Request, res: Response) => {
   try {
     const engineers = await prisma.user.findMany({
       where: {
         role: "engineer",
         banned: false,
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-        phoneNumber: true,
-        username: true,
-        displayUsername: true,
-        kycStatus: true,
-        createdAt: true,
-      },
+      select: selectUser,
       orderBy: {
         createdAt: "desc",
       },
@@ -33,35 +67,200 @@ export const getEngineers = async (req: Request, res: Response) => {
 
 export const createUser = async (req: Request, res: Response) => {
   try {
+    const {
+      id,
+      name,
+      email,
+      emailVerified,
+      image,
+      role,
+      username,
+      displayUsername,
+      phoneNumber,
+      phoneNumberVerified,
+      fcmToken,
+      notificationPrefs,
+    } = req.body;
+
+    if (!id || !name || !email) {
+      return res.status(400).json({ message: "id, name and email are required" });
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        id,
+        name,
+        email,
+        emailVerified: Boolean(emailVerified),
+        image,
+        role: role || "client",
+        username,
+        displayUsername,
+        phoneNumber,
+        phoneNumberVerified:
+          phoneNumberVerified !== undefined
+            ? Boolean(phoneNumberVerified)
+            : undefined,
+        fcmToken,
+        notificationPrefs: parseJson(notificationPrefs) || {},
+      },
+      select: selectUser,
+    });
+
+    return res.status(201).json({
+      message: "User created successfully",
+      user,
+    });
   } catch (error) {
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Create user error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
+    const role = typeof req.query.role === "string" ? req.query.role : undefined;
+    const kycStatus =
+      typeof req.query.kycStatus === "string" ? req.query.kycStatus : undefined;
+
+    if (kycStatus !== undefined && !isKycStatus(kycStatus)) {
+      return res.status(400).json({ message: "Invalid KYC status" });
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        ...(role ? { role } : {}),
+        ...(kycStatus ? { kycStatus } : {}),
+      },
+      select: selectUser,
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.json(users);
   } catch (error) {
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Get users error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 export const getUserById = async (req: Request, res: Response) => {
   try {
+    const id = getId(req.params.id);
+
+    if (!id) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        ...selectUser,
+        kycDocuments: true,
+        apiKeys: true,
+        sessions: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json(user);
   } catch (error) {
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Get user by ID error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 export const updateUser = async (req: Request, res: Response) => {
   try {
+    const id = getId(req.params.id);
+    const {
+      name,
+      email,
+      emailVerified,
+      image,
+      role,
+      banned,
+      banReason,
+      banExpires,
+      username,
+      displayUsername,
+      phoneNumber,
+      phoneNumberVerified,
+      fcmToken,
+      kycStatus,
+      kycRejectionReason,
+      notificationPrefs,
+    } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    if (kycStatus !== undefined && !isKycStatus(kycStatus)) {
+      return res.status(400).json({ message: "Invalid KYC status" });
+    }
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: {
+        name,
+        email,
+        emailVerified:
+          emailVerified !== undefined ? Boolean(emailVerified) : undefined,
+        image,
+        role,
+        banned: banned !== undefined ? Boolean(banned) : undefined,
+        banReason,
+        banExpires:
+          banExpires !== undefined
+            ? banExpires
+              ? new Date(banExpires)
+              : null
+            : undefined,
+        username,
+        displayUsername,
+        phoneNumber,
+        phoneNumberVerified:
+          phoneNumberVerified !== undefined
+            ? Boolean(phoneNumberVerified)
+            : undefined,
+        fcmToken,
+        kycStatus,
+        kycReviewedAt: kycStatus ? new Date() : undefined,
+        kycRejectionReason,
+        notificationPrefs:
+          notificationPrefs !== undefined
+            ? parseJson(notificationPrefs)
+            : undefined,
+      },
+      select: selectUser,
+    });
+
+    return res.json({
+      message: "User updated successfully",
+      user,
+    });
   } catch (error) {
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Update user error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 export const deleteUser = async (req: Request, res: Response) => {
   try {
+    const id = getId(req.params.id);
+
+    if (!id) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    await prisma.user.delete({ where: { id } });
+
+    return res.json({ message: "User deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Delete user error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };

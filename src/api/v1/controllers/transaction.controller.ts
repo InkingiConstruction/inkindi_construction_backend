@@ -6,6 +6,7 @@ import {
   TransactionType,
 } from "@prisma/client";
 import prisma from "../../../lib/prisma.js";
+import { notifyProjectParticipants } from "../../../lib/notifications.js";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -400,6 +401,20 @@ export const createTransaction = async (req: Request, res: Response) => {
       };
     });
 
+    if (transaction.status === "completed") {
+      await notifyProjectParticipants({
+        projectId: transaction.escrowAccount.projectId,
+        excludeUserId: req.user.id,
+        title: "Escrow transaction completed",
+        body: `${transaction.type} of ${transaction.amount} ${transaction.escrowAccount.currency} completed`,
+        data: {
+          transactionId: transaction.id,
+          milestoneId: transaction.milestoneId,
+          type: "transaction_completed",
+        },
+      });
+    }
+
     return res.status(201).json({
       message: "Transaction created successfully",
       transaction,
@@ -685,6 +700,20 @@ export const updateTransaction = async (req: Request, res: Response) => {
         },
       });
     });
+
+    if (transaction.status === "completed") {
+      await notifyProjectParticipants({
+        projectId: transaction.escrowAccount.projectId,
+        excludeUserId: req.user.id,
+        title: "Escrow transaction completed",
+        body: `${transaction.type} of ${transaction.amount} ${transaction.escrowAccount.currency} completed`,
+        data: {
+          transactionId: transaction.id,
+          milestoneId: transaction.milestoneId,
+          type: "transaction_completed",
+        },
+      });
+    }
 
     return res.json({
       message: "Transaction updated successfully",

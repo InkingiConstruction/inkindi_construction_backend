@@ -7,6 +7,7 @@ const role_middleware_1 = require("../middleware/role.middleware");
 const router = (0, express_1.Router)();
 router.post("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("admin"), notification_controller_1.createNotification);
 router.get("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), notification_controller_1.getNotifications);
+router.post("/expo-token", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), notification_controller_1.registerExpoPushToken);
 router.get("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), notification_controller_1.getNotificationById);
 router.put("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), notification_controller_1.updateNotification);
 router.delete("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), notification_controller_1.deleteNotification);

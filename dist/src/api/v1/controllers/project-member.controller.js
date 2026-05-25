@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteProjectMember = exports.rejectProjectMember = exports.acceptProjectMember = exports.updateProjectMember = exports.getProjectMemberById = exports.getProjectMembers = exports.createProjectMember = void 0;
 const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const canManageProjectMember = (project, userId, role) => {
     if (role === "admin")
@@ -126,6 +127,16 @@ const createProjectMember = async (req, res) => {
                         image: true,
                     },
                 },
+            },
+        });
+        await (0, notifications_js_1.notifyUser)({
+            userId: assignment.userId,
+            title: "Project assignment",
+            body: `You were invited to join ${assignment.project.name} as ${assignment.role}`,
+            data: {
+                projectId: assignment.projectId,
+                assignmentId: assignment.id,
+                type: "project_assignment",
             },
         });
         return res.status(201).json({
@@ -329,6 +340,16 @@ const acceptProjectMember = async (req, res) => {
             }
             return updated;
         });
+        await (0, notifications_js_1.notifyUser)({
+            userId: acceptedAssignment.project.clientId,
+            title: "Project assignment accepted",
+            body: `${acceptedAssignment.user.name} accepted ${acceptedAssignment.project.name}`,
+            data: {
+                projectId: acceptedAssignment.projectId,
+                assignmentId: acceptedAssignment.id,
+                type: "project_assignment_accepted",
+            },
+        });
         return res.json({
             message: "Project assignment accepted",
             assignment: acceptedAssignment,
@@ -379,6 +400,16 @@ const rejectProjectMember = async (req, res) => {
                         image: true,
                     },
                 },
+            },
+        });
+        await (0, notifications_js_1.notifyUser)({
+            userId: rejectedAssignment.project.clientId,
+            title: "Project assignment rejected",
+            body: `${rejectedAssignment.user.name} rejected ${rejectedAssignment.project.name}`,
+            data: {
+                projectId: rejectedAssignment.projectId,
+                assignmentId: rejectedAssignment.id,
+                type: "project_assignment_rejected",
             },
         });
         return res.json({

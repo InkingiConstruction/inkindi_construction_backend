@@ -7,6 +7,7 @@ exports.deleteInspection = exports.updateInspection = exports.getInspectionById 
 const client_1 = require("@prisma/client");
 const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
 const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJsonField = (value) => {
     if (!value)
@@ -196,6 +197,20 @@ const createInspection = async (req, res) => {
             }
             return createdInspection;
         });
+        if (decision) {
+            await (0, notifications_js_1.notifyProjectParticipants)({
+                projectId: inspection.milestone.projectId,
+                excludeUserId: req.user.id,
+                title: "Milestone inspected",
+                body: `${inspection.milestone.name} inspection result: ${decision}`,
+                data: {
+                    milestoneId: inspection.milestoneId,
+                    inspectionId: inspection.id,
+                    decision,
+                    type: "inspection_decision",
+                },
+            });
+        }
         return res.status(201).json({
             message: "Inspection created successfully",
             inspection,
@@ -392,6 +407,20 @@ const updateInspection = async (req, res) => {
             }
             return updatedInspection;
         });
+        if (decision) {
+            await (0, notifications_js_1.notifyProjectParticipants)({
+                projectId: inspection.milestone.projectId,
+                excludeUserId: req.user.id,
+                title: "Inspection updated",
+                body: `${inspection.milestone.name} inspection result: ${decision}`,
+                data: {
+                    milestoneId: inspection.milestoneId,
+                    inspectionId: inspection.id,
+                    decision,
+                    type: "inspection_decision_updated",
+                },
+            });
+        }
         return res.json({
             message: "Inspection updated successfully",
             inspection,

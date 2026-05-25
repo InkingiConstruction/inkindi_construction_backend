@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Prisma, RfqStatus } from "@prisma/client";
 import prisma from "../../../lib/prisma.js";
+import { notifyUsers } from "../../../lib/notifications.js";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -120,6 +121,25 @@ export const createRfq = async (req: Request, res: Response) => {
         quotes: true,
       },
     });
+
+    const suppliers = await prisma.user.findMany({
+      where: { role: "supplier", banned: false },
+      select: { id: true },
+    });
+
+    await notifyUsers(
+      suppliers.map((supplier) => supplier.id),
+      {
+        title: "New RFQ available",
+        body: rfq.title,
+        data: {
+          rfqId: rfq.id,
+          projectId: rfq.projectId,
+          milestoneId: rfq.milestoneId,
+          type: "rfq_created",
+        },
+      },
+    );
 
     return res.status(201).json({
       message: "RFQ created successfully",

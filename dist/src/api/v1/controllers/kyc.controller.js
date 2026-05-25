@@ -9,6 +9,7 @@ const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
 const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const resend_js_1 = __importDefault(require("../../../lib/resend.js"));
 const email_tempelates_js_1 = require("../../../utils/email-tempelates.js");
+const notifications_js_1 = require("../../../lib/notifications.js");
 const requiredDocuments = {
     client: ["national_id"],
     supervisor: ["national_id", "indemnity_insurance", "certification"],
@@ -322,6 +323,12 @@ const approveKyc = async (req, res, next) => {
         });
         const template = (0, email_tempelates_js_1.kycApprovedTemplate)(updatedUser.name);
         await (0, resend_js_1.default)({ to: updatedUser.email, ...template });
+        await (0, notifications_js_1.notifyUser)({
+            userId: updatedUser.id,
+            title: "KYC approved",
+            body: "Your identity verification was approved",
+            data: { type: "kyc_approved" },
+        });
         return res.json({ message: "KYC approved successfully" });
     }
     catch (error) {
@@ -364,6 +371,12 @@ const rejectKyc = async (req, res, next) => {
         });
         const template = (0, email_tempelates_js_1.kycRejectedTemplate)(updatedUser.name, reason);
         await (0, resend_js_1.default)({ to: updatedUser.email, ...template });
+        await (0, notifications_js_1.notifyUser)({
+            userId: updatedUser.id,
+            title: "KYC rejected",
+            body: reason,
+            data: { type: "kyc_rejected" },
+        });
         return res.json({ message: "KYC rejected successfully" });
     }
     catch (error) {

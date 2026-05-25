@@ -3,6 +3,7 @@ import { Prisma, QuoteStatus } from "@prisma/client";
 import { UploadApiResponse } from "cloudinary";
 import cloudinary from "../../../lib/cloudinary.js";
 import prisma from "../../../lib/prisma.js";
+import { notifyUser } from "../../../lib/notifications.js";
 
 type UploadedCert = {
   cloudinaryUrl: string;
@@ -176,6 +177,17 @@ export const createQuote = async (req: Request, res: Response) => {
             role: true,
           },
         },
+      },
+    });
+
+    await notifyUser({
+      userId: quote.rfq.engineerId,
+      title: "New supplier quote",
+      body: `${quote.supplier.name} submitted a quote for ${quote.rfq.title}`,
+      data: {
+        rfqId: quote.rfqId,
+        quoteId: quote.id,
+        type: "quote_submitted",
       },
     });
 
@@ -431,6 +443,19 @@ export const updateQuote = async (req: Request, res: Response) => {
         },
       });
     });
+
+    if (quote.status === "selected") {
+      await notifyUser({
+        userId: quote.supplierId,
+        title: "Quote selected",
+        body: `Your quote for ${quote.rfq.title} was selected`,
+        data: {
+          rfqId: quote.rfqId,
+          quoteId: quote.id,
+          type: "quote_selected",
+        },
+      });
+    }
 
     return res.json({
       message: "Quote updated successfully",

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { MilestoneStatus, Prisma } from "@prisma/client";
 import prisma from "../../../lib/prisma.js";
+import { notifyProjectParticipants, notifyUser } from "../../../lib/notifications.js";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -205,6 +206,17 @@ export const createMilestone = async (req: Request, res: Response) => {
             role: true,
           },
         },
+      },
+    });
+
+    await notifyUser({
+      userId: milestone.project.clientId,
+      title: "New milestone created",
+      body: `${milestone.name} was added to ${milestone.project.name}`,
+      data: {
+        projectId: milestone.projectId,
+        milestoneId: milestone.id,
+        type: "milestone_created",
       },
     });
 
@@ -428,6 +440,20 @@ export const updateMilestone = async (req: Request, res: Response) => {
         },
       },
     });
+
+    if (req.body.status !== undefined) {
+      await notifyProjectParticipants({
+        projectId: milestone.projectId,
+        excludeUserId: req.user.id,
+        title: "Milestone status updated",
+        body: `${milestone.name} is now ${milestone.status}`,
+        data: {
+          milestoneId: milestone.id,
+          status: milestone.status,
+          type: "milestone_status_updated",
+        },
+      });
+    }
 
     return res.json({
       message: "Milestone updated successfully",

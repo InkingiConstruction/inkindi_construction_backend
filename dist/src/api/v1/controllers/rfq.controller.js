@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteRfq = exports.updateRfq = exports.getRfqById = exports.getRfqs = exports.createRfq = void 0;
 const client_1 = require("@prisma/client");
 const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJsonField = (value) => {
     if (!value)
@@ -87,6 +88,20 @@ const createRfq = async (req, res) => {
                     },
                 },
                 quotes: true,
+            },
+        });
+        const suppliers = await prisma_js_1.default.user.findMany({
+            where: { role: "supplier", banned: false },
+            select: { id: true },
+        });
+        await (0, notifications_js_1.notifyUsers)(suppliers.map((supplier) => supplier.id), {
+            title: "New RFQ available",
+            body: rfq.title,
+            data: {
+                rfqId: rfq.id,
+                projectId: rfq.projectId,
+                milestoneId: rfq.milestoneId,
+                type: "rfq_created",
             },
         });
         return res.status(201).json({

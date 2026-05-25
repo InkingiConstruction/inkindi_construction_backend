@@ -7,6 +7,7 @@ exports.deleteDelivery = exports.updateDelivery = exports.getDeliveryById = expo
 const client_1 = require("@prisma/client");
 const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
 const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJsonField = (value) => {
     if (!value)
@@ -146,6 +147,17 @@ const createDelivery = async (req, res) => {
                         role: true,
                     },
                 },
+            },
+        });
+        await (0, notifications_js_1.notifyProjectParticipants)({
+            projectId: delivery.purchaseOrder.rfq.projectId,
+            excludeUserId: req.user.id,
+            title: "Delivery created",
+            body: `Delivery for ${delivery.purchaseOrder.poNumber} is ${delivery.status}`,
+            data: {
+                deliveryId: delivery.id,
+                purchaseOrderId: delivery.purchaseOrderId,
+                type: "delivery_created",
             },
         });
         return res.status(201).json({
@@ -386,6 +398,20 @@ const updateDelivery = async (req, res) => {
             }
             return updatedDelivery;
         });
+        if (status) {
+            await (0, notifications_js_1.notifyProjectParticipants)({
+                projectId: delivery.purchaseOrder.rfq.projectId,
+                excludeUserId: req.user.id,
+                title: "Delivery updated",
+                body: `Delivery for ${delivery.purchaseOrder.poNumber} is ${delivery.status}`,
+                data: {
+                    deliveryId: delivery.id,
+                    purchaseOrderId: delivery.purchaseOrderId,
+                    status: delivery.status,
+                    type: "delivery_status_updated",
+                },
+            });
+        }
         return res.json({
             message: "Delivery updated successfully",
             delivery,

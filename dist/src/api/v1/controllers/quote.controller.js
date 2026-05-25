@@ -7,6 +7,7 @@ exports.deleteQuote = exports.updateQuote = exports.getQuoteById = exports.getQu
 const client_1 = require("@prisma/client");
 const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
 const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJsonField = (value) => {
     if (!value)
@@ -122,6 +123,16 @@ const createQuote = async (req, res) => {
                         role: true,
                     },
                 },
+            },
+        });
+        await (0, notifications_js_1.notifyUser)({
+            userId: quote.rfq.engineerId,
+            title: "New supplier quote",
+            body: `${quote.supplier.name} submitted a quote for ${quote.rfq.title}`,
+            data: {
+                rfqId: quote.rfqId,
+                quoteId: quote.id,
+                type: "quote_submitted",
             },
         });
         return res.status(201).json({
@@ -343,6 +354,18 @@ const updateQuote = async (req, res) => {
                 },
             });
         });
+        if (quote.status === "selected") {
+            await (0, notifications_js_1.notifyUser)({
+                userId: quote.supplierId,
+                title: "Quote selected",
+                body: `Your quote for ${quote.rfq.title} was selected`,
+                data: {
+                    rfqId: quote.rfqId,
+                    quoteId: quote.id,
+                    type: "quote_selected",
+                },
+            });
+        }
         return res.json({
             message: "Quote updated successfully",
             quote,

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../../../lib/prisma.js";
+import { notifyUser } from "../../../lib/notifications.js";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -139,6 +140,17 @@ export const createProjectMember = async (req: Request, res: Response) => {
             image: true,
           },
         },
+      },
+    });
+
+    await notifyUser({
+      userId: assignment.userId,
+      title: "Project assignment",
+      body: `You were invited to join ${assignment.project.name} as ${assignment.role}`,
+      data: {
+        projectId: assignment.projectId,
+        assignmentId: assignment.id,
+        type: "project_assignment",
       },
     });
 
@@ -374,6 +386,17 @@ export const acceptProjectMember = async (req: Request, res: Response) => {
       return updated;
     });
 
+    await notifyUser({
+      userId: acceptedAssignment.project.clientId,
+      title: "Project assignment accepted",
+      body: `${acceptedAssignment.user.name} accepted ${acceptedAssignment.project.name}`,
+      data: {
+        projectId: acceptedAssignment.projectId,
+        assignmentId: acceptedAssignment.id,
+        type: "project_assignment_accepted",
+      },
+    });
+
     return res.json({
       message: "Project assignment accepted",
       assignment: acceptedAssignment,
@@ -430,6 +453,17 @@ export const rejectProjectMember = async (req: Request, res: Response) => {
             image: true,
           },
         },
+      },
+    });
+
+    await notifyUser({
+      userId: rejectedAssignment.project.clientId,
+      title: "Project assignment rejected",
+      body: `${rejectedAssignment.user.name} rejected ${rejectedAssignment.project.name}`,
+      data: {
+        projectId: rejectedAssignment.projectId,
+        assignmentId: rejectedAssignment.id,
+        type: "project_assignment_rejected",
       },
     });
 

@@ -3,6 +3,7 @@ import { UploadApiResponse } from "cloudinary";
 import { Prisma } from "@prisma/client";
 import cloudinary from "../../../lib/cloudinary.js";
 import prisma from "../../../lib/prisma.js";
+import { notifyProjectParticipants } from "../../../lib/notifications.js";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -184,6 +185,17 @@ export const createProgressPhoto = async (req: Request, res: Response) => {
         });
       }),
     );
+
+    await notifyProjectParticipants({
+      projectId: project.id,
+      excludeUserId: req.user.id,
+      title: "Progress uploaded",
+      body: `${req.user.name} uploaded ${progressPhotos.length} progress item(s)`,
+      data: {
+        milestoneId: milestoneId || undefined,
+        type: "progress_uploaded",
+      },
+    });
 
     return res.status(201).json({
       message: "Progress media uploaded successfully",
