@@ -1,11 +1,16 @@
-import "dotenv/config";
-import express from "express";
-import cors from "cors";
-import { toNodeHandler } from "better-auth/node";
-import { auth } from "./lib/auth";
-import v1Routes from "./api/v1";
-import { emailSignInLockout } from "./api/v1/middleware/auth-security.middleware";
-const app = express();
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+require("dotenv/config");
+const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
+const node_1 = require("better-auth/node");
+const auth_1 = require("./lib/auth");
+const v1_1 = __importDefault(require("./api/v1"));
+const auth_security_middleware_1 = require("./api/v1/middleware/auth-security.middleware");
+const app = (0, express_1.default)();
 const port = process.env.PORT;
 const isProduction = process.env.NODE_ENV === "production";
 const envAllowedOrigins = (process.env.CORS_ORIGINS || "")
@@ -26,7 +31,7 @@ function isAllowedOrigin(origin) {
     return (allowedOrigins.includes(origin) ||
         (!isProduction && devOriginPattern.test(origin)));
 }
-app.use(cors({
+app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         if (!origin)
             return callback(null, true);
@@ -47,13 +52,13 @@ app.use("/api/v1/auth", (req, _res, next) => {
     }
     next();
 });
-app.post("/api/v1/auth/sign-in/email", express.json(), emailSignInLockout);
-app.all("/api/v1/auth/*splat", toNodeHandler(auth));
-app.use(express.json());
+app.post("/api/v1/auth/sign-in/email", express_1.default.json(), auth_security_middleware_1.emailSignInLockout);
+app.all("/api/v1/auth/*splat", (0, node_1.toNodeHandler)(auth_1.auth));
+app.use(express_1.default.json());
 app.get("/health", (_req, res) => {
     res.send("Inkingi API is Live! 🚀");
 });
-app.use("/api/v1", v1Routes);
+app.use("/api/v1", v1_1.default);
 app.listen(Number(port), "0.0.0.0", () => {
     console.log("Server is running at http://0.0.0.0:" + port);
 });
