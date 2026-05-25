@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from "express";
-import prisma from "../lib/prisma.js";
-import sendEmail from "../lib/resend.js";
+import prisma from "../../../lib/prisma.js";
+import sendEmail from "../../../lib/resend.js";
 import {
   kycApprovedTemplate,
   kycRejectedTemplate,
-} from "../utils/email-tempelates.js";
+} from "../../../utils/email-tempelates.js";
 import { KycDocumentType } from "@prisma/client";
 
 const requiredDocuments: Record<string, KycDocumentType[]> = {

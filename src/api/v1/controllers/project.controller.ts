@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { UploadApiResponse } from "cloudinary";
 import { Prisma, ProjectStatus } from "@prisma/client";
-import cloudinary from "../lib/cloudinary.js";
-import prisma from "../lib/prisma.js";
+import cloudinary from "../../../lib/cloudinary.js";
+import prisma from "../../../lib/prisma.js";
 
 type ProjectMediaCollection = "sitePhotos" | "architecturalPlans";
 
