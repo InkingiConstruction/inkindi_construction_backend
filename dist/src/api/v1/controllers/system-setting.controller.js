@@ -1,35 +1,43 @@
-export const createSystemSetting = async (req, res) => {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteSystemSetting = exports.updateSystemSetting = exports.getSystemSettingById = exports.getSystemSettings = exports.createSystemSetting = void 0;
+const createSystemSetting = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getSystemSettings = async (req, res) => {
+exports.createSystemSetting = createSystemSetting;
+const getSystemSettings = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getSystemSettingById = async (req, res) => {
+exports.getSystemSettings = getSystemSettings;
+const getSystemSettingById = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateSystemSetting = async (req, res) => {
+exports.getSystemSettingById = getSystemSettingById;
+const updateSystemSetting = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteSystemSetting = async (req, res) => {
+exports.updateSystemSetting = updateSystemSetting;
+const deleteSystemSetting = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteSystemSetting = deleteSystemSetting;

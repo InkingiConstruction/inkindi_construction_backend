@@ -1,8 +1,14 @@
-import { ProjectStatus } from "@prisma/client";
-import cloudinary from "../../../lib/cloudinary.js";
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteProject = exports.deleteProjectImage = exports.changeProjectImage = exports.toggleProjectStatus = exports.updateProject = exports.getProjectById = exports.getProjects = exports.createProject = void 0;
+const client_1 = require("@prisma/client");
+const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const uploadImage = (file, folder) => new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({
+    const stream = cloudinary_js_1.default.uploader.upload_stream({
         folder,
         resource_type: "image",
     }, (error, result) => {
@@ -71,7 +77,7 @@ const getMediaPublicIds = (value) => {
 const deleteCloudinaryFiles = async (publicIds) => {
     if (publicIds.length === 0)
         return;
-    await Promise.allSettled(publicIds.map((publicId) => cloudinary.uploader.destroy(publicId)));
+    await Promise.allSettled(publicIds.map((publicId) => cloudinary_js_1.default.uploader.destroy(publicId)));
 };
 const canReadProject = (project, userId, role) => {
     if (role === "admin")
@@ -119,12 +125,12 @@ const buildProjectUpdateData = (body) => {
     return data;
 };
 const getNextProjectStatus = (status) => {
-    const statuses = Object.values(ProjectStatus);
+    const statuses = Object.values(client_1.ProjectStatus);
     const currentIndex = statuses.indexOf(status);
     const nextIndex = currentIndex === statuses.length - 1 ? 0 : currentIndex + 1;
     return statuses[nextIndex];
 };
-export const createProject = async (req, res) => {
+const createProject = async (req, res) => {
     try {
         const userId = req.user.id;
         const { name, description, status, budget, currency, address, gpsBoundary, architecturalPlans, startDate, endDate, engineerId, } = req.body;
@@ -134,7 +140,7 @@ export const createProject = async (req, res) => {
         const files = req.files || [];
         const uploaded = await uploadProjectFiles(files);
         const bodyArchitecturalPlans = parseJsonField(architecturalPlans);
-        const project = await prisma.project.create({
+        const project = await prisma_js_1.default.project.create({
             data: {
                 name,
                 description,
@@ -163,18 +169,19 @@ export const createProject = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getProjects = async (req, res) => {
+exports.createProject = createProject;
+const getProjects = async (req, res) => {
     try {
         const role = req.user.role;
         const userId = req.user.id;
         let projects;
         if (role === "client") {
-            projects = await prisma.project.findMany({
+            projects = await prisma_js_1.default.project.findMany({
                 where: { clientId: userId },
             });
         }
         else if (role === "engineer") {
-            projects = await prisma.project.findMany({
+            projects = await prisma_js_1.default.project.findMany({
                 where: {
                     OR: [
                         { engineerId: userId },
@@ -184,12 +191,12 @@ export const getProjects = async (req, res) => {
             });
         }
         else if (role === "supervisor" || role === "supplier") {
-            projects = await prisma.project.findMany({
+            projects = await prisma_js_1.default.project.findMany({
                 where: { projectMembers: { some: { userId } } },
             });
         }
         else {
-            projects = await prisma.project.findMany();
+            projects = await prisma_js_1.default.project.findMany();
         }
         return res.json(projects);
     }
@@ -198,13 +205,14 @@ export const getProjects = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getProjectById = async (req, res) => {
+exports.getProjects = getProjects;
+const getProjectById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Project ID is required" });
         }
-        const project = await prisma.project.findUnique({
+        const project = await prisma_js_1.default.project.findUnique({
             where: { id: id },
             include: {
                 client: true,
@@ -227,13 +235,14 @@ export const getProjectById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateProject = async (req, res) => {
+exports.getProjectById = getProjectById;
+const updateProject = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Project ID is required" });
         }
-        const existingProject = await prisma.project.findUnique({
+        const existingProject = await prisma_js_1.default.project.findUnique({
             where: { id },
         });
         if (!existingProject) {
@@ -269,7 +278,7 @@ export const updateProject = async (req, res) => {
         else if (bodyArchitecturalPlans !== undefined) {
             data.architecturalPlans = bodyArchitecturalPlans;
         }
-        const project = await prisma.project.update({
+        const project = await prisma_js_1.default.project.update({
             where: { id },
             data,
         });
@@ -283,14 +292,15 @@ export const updateProject = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const toggleProjectStatus = async (req, res) => {
+exports.updateProject = updateProject;
+const toggleProjectStatus = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const requestedStatus = req.body.status;
         if (!id) {
             return res.status(400).json({ message: "Project ID is required" });
         }
-        const existingProject = await prisma.project.findUnique({
+        const existingProject = await prisma_js_1.default.project.findUnique({
             where: { id },
         });
         if (!existingProject) {
@@ -300,13 +310,13 @@ export const toggleProjectStatus = async (req, res) => {
             return res.status(403).json({ message: "Forbidden" });
         }
         if (requestedStatus &&
-            !Object.values(ProjectStatus).includes(requestedStatus)) {
+            !Object.values(client_1.ProjectStatus).includes(requestedStatus)) {
             return res.status(400).json({ message: "Invalid project status" });
         }
         const status = requestedStatus
             ? requestedStatus
             : getNextProjectStatus(existingProject.status);
-        const project = await prisma.project.update({
+        const project = await prisma_js_1.default.project.update({
             where: { id },
             data: { status },
         });
@@ -320,7 +330,8 @@ export const toggleProjectStatus = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const changeProjectImage = async (req, res) => {
+exports.toggleProjectStatus = toggleProjectStatus;
+const changeProjectImage = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const { collection, publicId } = req.body;
@@ -338,7 +349,7 @@ export const changeProjectImage = async (req, res) => {
         if (!file) {
             return res.status(400).json({ message: "New image file is required" });
         }
-        const existingProject = await prisma.project.findUnique({
+        const existingProject = await prisma_js_1.default.project.findUnique({
             where: { id },
         });
         if (!existingProject) {
@@ -358,7 +369,7 @@ export const changeProjectImage = async (req, res) => {
             cloudinaryUrl: uploadedImage.secure_url,
             publicId: uploadedImage.public_id,
         };
-        const project = await prisma.project.update({
+        const project = await prisma_js_1.default.project.update({
             where: { id },
             data: collection === "sitePhotos"
                 ? { sitePhotos: media }
@@ -375,7 +386,8 @@ export const changeProjectImage = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteProjectImage = async (req, res) => {
+exports.changeProjectImage = changeProjectImage;
+const deleteProjectImage = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const { collection, publicId } = req.body;
@@ -388,7 +400,7 @@ export const deleteProjectImage = async (req, res) => {
         if (!publicId) {
             return res.status(400).json({ message: "Image publicId is required" });
         }
-        const existingProject = await prisma.project.findUnique({
+        const existingProject = await prisma_js_1.default.project.findUnique({
             where: { id },
         });
         if (!existingProject) {
@@ -403,7 +415,7 @@ export const deleteProjectImage = async (req, res) => {
             return res.status(404).json({ message: "Project image not found" });
         }
         const updatedMedia = media.filter((item) => item.publicId !== publicId);
-        const project = await prisma.project.update({
+        const project = await prisma_js_1.default.project.update({
             where: { id },
             data: collection === "sitePhotos"
                 ? { sitePhotos: updatedMedia }
@@ -420,13 +432,14 @@ export const deleteProjectImage = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteProject = async (req, res) => {
+exports.deleteProjectImage = deleteProjectImage;
+const deleteProject = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Project ID is required" });
         }
-        const project = await prisma.project.findUnique({
+        const project = await prisma_js_1.default.project.findUnique({
             where: { id },
         });
         if (!project) {
@@ -439,7 +452,7 @@ export const deleteProject = async (req, res) => {
             ...getMediaPublicIds(project.sitePhotos),
             ...getMediaPublicIds(project.architecturalPlans),
         ];
-        await prisma.project.delete({
+        await prisma_js_1.default.project.delete({
             where: { id },
         });
         await deleteCloudinaryFiles(publicIds);
@@ -450,3 +463,4 @@ export const deleteProject = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteProject = deleteProject;

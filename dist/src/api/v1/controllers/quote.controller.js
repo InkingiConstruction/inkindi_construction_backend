@@ -1,6 +1,12 @@
-import { Prisma, QuoteStatus } from "@prisma/client";
-import cloudinary from "../../../lib/cloudinary.js";
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteQuote = exports.updateQuote = exports.getQuoteById = exports.getQuotes = exports.createQuote = void 0;
+const client_1 = require("@prisma/client");
+const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJsonField = (value) => {
     if (!value)
@@ -15,9 +21,9 @@ const parseJsonField = (value) => {
     }
 };
 const isQuoteStatus = (value) => typeof value === "string" &&
-    Object.values(QuoteStatus).includes(value);
+    Object.values(client_1.QuoteStatus).includes(value);
 const uploadImage = (file, folder) => new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({
+    const stream = cloudinary_js_1.default.uploader.upload_stream({
         folder,
         resource_type: "image",
     }, (error, result) => {
@@ -44,7 +50,7 @@ const canReadQuote = (quote, userId, role) => {
     return Boolean(quote.rfq.project.projectMembers?.some((member) => member.userId === userId && member.status === "accepted"));
 };
 const canSelectQuote = (quote, userId, role) => role === "admin" || (role === "engineer" && quote.rfq.engineerId === userId);
-export const createQuote = async (req, res) => {
+const createQuote = async (req, res) => {
     try {
         const { rfqId, unitPrice, totalPrice, deliveryDays, warrantyMonths, terms, certUrls, } = req.body;
         const files = req.files || [];
@@ -53,7 +59,7 @@ export const createQuote = async (req, res) => {
                 message: "rfqId, unitPrice and deliveryDays are required",
             });
         }
-        const rfq = await prisma.rfq.findUnique({
+        const rfq = await prisma_js_1.default.rfq.findUnique({
             where: { id: String(rfqId) },
             include: {
                 quotes: {
@@ -85,13 +91,13 @@ export const createQuote = async (req, res) => {
         }));
         const bodyCertUrls = parseJsonField(certUrls);
         const nextTotalPrice = totalPrice !== undefined
-            ? new Prisma.Decimal(totalPrice)
-            : new Prisma.Decimal(unitPrice).times(rfq.quantity);
-        const quote = await prisma.quote.create({
+            ? new client_1.Prisma.Decimal(totalPrice)
+            : new client_1.Prisma.Decimal(unitPrice).times(rfq.quantity);
+        const quote = await prisma_js_1.default.quote.create({
             data: {
                 rfqId: rfq.id,
                 supplierId: req.user.id,
-                unitPrice: new Prisma.Decimal(unitPrice),
+                unitPrice: new client_1.Prisma.Decimal(unitPrice),
                 totalPrice: nextTotalPrice,
                 deliveryDays: Number(deliveryDays),
                 warrantyMonths: warrantyMonths !== undefined ? Number(warrantyMonths) : undefined,
@@ -128,14 +134,15 @@ export const createQuote = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getQuotes = async (req, res) => {
+exports.createQuote = createQuote;
+const getQuotes = async (req, res) => {
     try {
         const rfqId = typeof req.query.rfqId === "string" ? req.query.rfqId : undefined;
         const status = typeof req.query.status === "string" ? req.query.status : undefined;
         if (status !== undefined && !isQuoteStatus(status)) {
             return res.status(400).json({ message: "Invalid quote status" });
         }
-        const quotes = await prisma.quote.findMany({
+        const quotes = await prisma_js_1.default.quote.findMany({
             where: {
                 ...(rfqId ? { rfqId } : {}),
                 ...(status ? { status } : {}),
@@ -189,13 +196,14 @@ export const getQuotes = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getQuoteById = async (req, res) => {
+exports.getQuotes = getQuotes;
+const getQuoteById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Quote ID is required" });
         }
-        const quote = await prisma.quote.findUnique({
+        const quote = await prisma_js_1.default.quote.findUnique({
             where: { id },
             include: {
                 rfq: {
@@ -233,7 +241,8 @@ export const getQuoteById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateQuote = async (req, res) => {
+exports.getQuoteById = getQuoteById;
+const updateQuote = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const { unitPrice, totalPrice, deliveryDays, warrantyMonths, terms, certUrls, status, } = req.body;
@@ -244,7 +253,7 @@ export const updateQuote = async (req, res) => {
         if (status !== undefined && !isQuoteStatus(status)) {
             return res.status(400).json({ message: "Invalid quote status" });
         }
-        const existingQuote = await prisma.quote.findUnique({
+        const existingQuote = await prisma_js_1.default.quote.findUnique({
             where: { id },
             include: {
                 rfq: true,
@@ -276,7 +285,7 @@ export const updateQuote = async (req, res) => {
             cloudinaryUrl: upload.secure_url,
             publicId: upload.public_id,
         }));
-        const quote = await prisma.$transaction(async (tx) => {
+        const quote = await prisma_js_1.default.$transaction(async (tx) => {
             if (status === "selected") {
                 await tx.quote.updateMany({
                     where: {
@@ -292,12 +301,12 @@ export const updateQuote = async (req, res) => {
                 where: { id },
                 data: {
                     unitPrice: supplierEditing && unitPrice !== undefined
-                        ? new Prisma.Decimal(unitPrice)
+                        ? new client_1.Prisma.Decimal(unitPrice)
                         : undefined,
                     totalPrice: supplierEditing && totalPrice !== undefined
-                        ? new Prisma.Decimal(totalPrice)
+                        ? new client_1.Prisma.Decimal(totalPrice)
                         : supplierEditing && unitPrice !== undefined
-                            ? new Prisma.Decimal(unitPrice).times(existingQuote.rfq.quantity)
+                            ? new client_1.Prisma.Decimal(unitPrice).times(existingQuote.rfq.quantity)
                             : undefined,
                     deliveryDays: supplierEditing && deliveryDays !== undefined
                         ? Number(deliveryDays)
@@ -344,13 +353,14 @@ export const updateQuote = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteQuote = async (req, res) => {
+exports.updateQuote = updateQuote;
+const deleteQuote = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Quote ID is required" });
         }
-        const quote = await prisma.quote.findUnique({
+        const quote = await prisma_js_1.default.quote.findUnique({
             where: { id },
             include: {
                 purchaseOrder: true,
@@ -369,7 +379,7 @@ export const deleteQuote = async (req, res) => {
                 message: "Selected quote or quote with purchase order cannot be deleted",
             });
         }
-        await prisma.quote.delete({
+        await prisma_js_1.default.quote.delete({
             where: { id },
         });
         return res.json({ message: "Quote deleted successfully" });
@@ -379,3 +389,4 @@ export const deleteQuote = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteQuote = deleteQuote;

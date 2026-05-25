@@ -1,11 +1,17 @@
-import { PurchaseOrderStatus } from "@prisma/client";
-import cloudinary from "../../../lib/cloudinary.js";
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deletePurchaseOrder = exports.updatePurchaseOrder = exports.getPurchaseOrderById = exports.getPurchaseOrders = exports.createPurchaseOrder = void 0;
+const client_1 = require("@prisma/client");
+const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const isPurchaseOrderStatus = (value) => typeof value === "string" &&
-    Object.values(PurchaseOrderStatus).includes(value);
+    Object.values(client_1.PurchaseOrderStatus).includes(value);
 const uploadImage = (file, folder) => new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({
+    const stream = cloudinary_js_1.default.uploader.upload_stream({
         folder,
         resource_type: "image",
     }, (error, result) => {
@@ -35,7 +41,7 @@ const generatePoNumber = () => `PO-${new Date().toISOString().slice(0, 10).repla
     .toString(36)
     .slice(2, 8)
     .toUpperCase()}`;
-export const createPurchaseOrder = async (req, res) => {
+const createPurchaseOrder = async (req, res) => {
     try {
         const { quoteId, poNumber, cloudinaryUrl, status } = req.body;
         const files = req.files || [];
@@ -45,7 +51,7 @@ export const createPurchaseOrder = async (req, res) => {
         if (status !== undefined && !isPurchaseOrderStatus(status)) {
             return res.status(400).json({ message: "Invalid purchase order status" });
         }
-        const quote = await prisma.quote.findUnique({
+        const quote = await prisma_js_1.default.quote.findUnique({
             where: { id: String(quoteId) },
             include: {
                 rfq: {
@@ -84,7 +90,7 @@ export const createPurchaseOrder = async (req, res) => {
                 message: "cloudinaryUrl or purchase order file is required",
             });
         }
-        const purchaseOrder = await prisma.$transaction(async (tx) => {
+        const purchaseOrder = await prisma_js_1.default.$transaction(async (tx) => {
             const createdPurchaseOrder = await tx.purchaseOrder.create({
                 data: {
                     rfqId: quote.rfqId,
@@ -130,7 +136,8 @@ export const createPurchaseOrder = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getPurchaseOrders = async (req, res) => {
+exports.createPurchaseOrder = createPurchaseOrder;
+const getPurchaseOrders = async (req, res) => {
     try {
         const status = typeof req.query.status === "string" ? req.query.status : undefined;
         const supplierId = typeof req.query.supplierId === "string"
@@ -140,7 +147,7 @@ export const getPurchaseOrders = async (req, res) => {
         if (status !== undefined && !isPurchaseOrderStatus(status)) {
             return res.status(400).json({ message: "Invalid purchase order status" });
         }
-        const purchaseOrders = await prisma.purchaseOrder.findMany({
+        const purchaseOrders = await prisma_js_1.default.purchaseOrder.findMany({
             where: {
                 ...(status ? { status } : {}),
                 ...(supplierId ? { supplierId } : {}),
@@ -196,13 +203,14 @@ export const getPurchaseOrders = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getPurchaseOrderById = async (req, res) => {
+exports.getPurchaseOrders = getPurchaseOrders;
+const getPurchaseOrderById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Purchase order ID is required" });
         }
-        const purchaseOrder = await prisma.purchaseOrder.findUnique({
+        const purchaseOrder = await prisma_js_1.default.purchaseOrder.findUnique({
             where: { id },
             include: {
                 rfq: {
@@ -241,7 +249,8 @@ export const getPurchaseOrderById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updatePurchaseOrder = async (req, res) => {
+exports.getPurchaseOrderById = getPurchaseOrderById;
+const updatePurchaseOrder = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const { poNumber, cloudinaryUrl, status } = req.body;
@@ -252,7 +261,7 @@ export const updatePurchaseOrder = async (req, res) => {
         if (status !== undefined && !isPurchaseOrderStatus(status)) {
             return res.status(400).json({ message: "Invalid purchase order status" });
         }
-        const existingPurchaseOrder = await prisma.purchaseOrder.findUnique({
+        const existingPurchaseOrder = await prisma_js_1.default.purchaseOrder.findUnique({
             where: { id },
             include: {
                 rfq: true,
@@ -275,7 +284,7 @@ export const updatePurchaseOrder = async (req, res) => {
         const upload = files[0]
             ? await uploadImage(files[0], "inkingi/procurement/purchase-orders")
             : null;
-        const purchaseOrder = await prisma.purchaseOrder.update({
+        const purchaseOrder = await prisma_js_1.default.purchaseOrder.update({
             where: { id },
             data: {
                 poNumber: engineerUpdating ? poNumber : undefined,
@@ -318,13 +327,14 @@ export const updatePurchaseOrder = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deletePurchaseOrder = async (req, res) => {
+exports.updatePurchaseOrder = updatePurchaseOrder;
+const deletePurchaseOrder = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Purchase order ID is required" });
         }
-        const purchaseOrder = await prisma.purchaseOrder.findUnique({
+        const purchaseOrder = await prisma_js_1.default.purchaseOrder.findUnique({
             where: { id },
             include: {
                 deliveries: true,
@@ -338,7 +348,7 @@ export const deletePurchaseOrder = async (req, res) => {
                 message: "Purchase order with deliveries cannot be deleted",
             });
         }
-        await prisma.purchaseOrder.delete({
+        await prisma_js_1.default.purchaseOrder.delete({
             where: { id },
         });
         return res.json({ message: "Purchase order deleted successfully" });
@@ -348,3 +358,4 @@ export const deletePurchaseOrder = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deletePurchaseOrder = deletePurchaseOrder;

@@ -1,5 +1,11 @@
-import { MilestoneStatus } from "@prisma/client";
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteMilestone = exports.updateMilestone = exports.getMilestoneById = exports.getMilestones = exports.createMilestone = void 0;
+const client_1 = require("@prisma/client");
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const canReadProjectMilestones = (project, userId, role) => {
     if (role === "admin")
@@ -28,7 +34,7 @@ const canDeleteMilestone = (milestone, userId, role) => {
     return role === "engineer" && milestone.engineerId === userId;
 };
 const isMilestoneStatus = (value) => typeof value === "string" &&
-    Object.values(MilestoneStatus).includes(value);
+    Object.values(client_1.MilestoneStatus).includes(value);
 const buildMilestoneUpdateData = (body) => {
     const data = {};
     if (body.name !== undefined)
@@ -63,7 +69,7 @@ const buildMilestoneUpdateData = (body) => {
     }
     return data;
 };
-export const createMilestone = async (req, res) => {
+const createMilestone = async (req, res) => {
     try {
         const { projectId, name, description, budgetPercentage, durationDays, acceptanceCriteria, dependsOn, order, status, } = req.body;
         if (!projectId ||
@@ -77,7 +83,7 @@ export const createMilestone = async (req, res) => {
         if (status !== undefined && !isMilestoneStatus(status)) {
             return res.status(400).json({ message: "Invalid milestone status" });
         }
-        const project = await prisma.project.findUnique({
+        const project = await prisma_js_1.default.project.findUnique({
             where: { id: String(projectId) },
             include: {
                 milestones: true,
@@ -101,7 +107,7 @@ export const createMilestone = async (req, res) => {
             });
         }
         if (dependsOn) {
-            const dependency = await prisma.milestone.findFirst({
+            const dependency = await prisma_js_1.default.milestone.findFirst({
                 where: {
                     id: String(dependsOn),
                     projectId: project.id,
@@ -119,7 +125,7 @@ export const createMilestone = async (req, res) => {
                 message: "Total milestone budget percentage cannot exceed 100",
             });
         }
-        const milestone = await prisma.milestone.create({
+        const milestone = await prisma_js_1.default.milestone.create({
             data: {
                 projectId: project.id,
                 engineerId,
@@ -155,14 +161,15 @@ export const createMilestone = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getMilestones = async (req, res) => {
+exports.createMilestone = createMilestone;
+const getMilestones = async (req, res) => {
     try {
         const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
         const status = typeof req.query.status === "string" ? req.query.status : undefined;
         if (status !== undefined && !isMilestoneStatus(status)) {
             return res.status(400).json({ message: "Invalid milestone status" });
         }
-        const milestones = await prisma.milestone.findMany({
+        const milestones = await prisma_js_1.default.milestone.findMany({
             where: {
                 ...(projectId ? { projectId } : {}),
                 ...(status ? { status } : {}),
@@ -225,13 +232,14 @@ export const getMilestones = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getMilestoneById = async (req, res) => {
+exports.getMilestones = getMilestones;
+const getMilestoneById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Milestone ID is required" });
         }
-        const milestone = await prisma.milestone.findUnique({
+        const milestone = await prisma_js_1.default.milestone.findUnique({
             where: { id },
             include: {
                 project: {
@@ -269,7 +277,8 @@ export const getMilestoneById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateMilestone = async (req, res) => {
+exports.getMilestoneById = getMilestoneById;
+const updateMilestone = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
@@ -278,7 +287,7 @@ export const updateMilestone = async (req, res) => {
         if (req.body.status !== undefined && !isMilestoneStatus(req.body.status)) {
             return res.status(400).json({ message: "Invalid milestone status" });
         }
-        const existingMilestone = await prisma.milestone.findUnique({
+        const existingMilestone = await prisma_js_1.default.milestone.findUnique({
             where: { id },
             include: {
                 project: {
@@ -298,7 +307,7 @@ export const updateMilestone = async (req, res) => {
             });
         }
         if (req.body.dependsOn) {
-            const dependency = await prisma.milestone.findFirst({
+            const dependency = await prisma_js_1.default.milestone.findFirst({
                 where: {
                     id: String(req.body.dependsOn),
                     projectId: existingMilestone.projectId,
@@ -322,7 +331,7 @@ export const updateMilestone = async (req, res) => {
                 });
             }
         }
-        const milestone = await prisma.milestone.update({
+        const milestone = await prisma_js_1.default.milestone.update({
             where: { id },
             data: buildMilestoneUpdateData(req.body),
             include: {
@@ -348,13 +357,14 @@ export const updateMilestone = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteMilestone = async (req, res) => {
+exports.updateMilestone = updateMilestone;
+const deleteMilestone = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Milestone ID is required" });
         }
-        const milestone = await prisma.milestone.findUnique({
+        const milestone = await prisma_js_1.default.milestone.findUnique({
             where: { id },
             include: {
                 _count: {
@@ -386,7 +396,7 @@ export const deleteMilestone = async (req, res) => {
                 message: "Milestone has dependent records and cannot be deleted",
             });
         }
-        await prisma.milestone.delete({
+        await prisma_js_1.default.milestone.delete({
             where: { id },
         });
         return res.json({ message: "Milestone deleted successfully" });
@@ -396,3 +406,4 @@ export const deleteMilestone = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteMilestone = deleteMilestone;

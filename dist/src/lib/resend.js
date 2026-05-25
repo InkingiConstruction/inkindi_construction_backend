@@ -1,5 +1,7 @@
-import { Resend } from "resend";
-const resend = new Resend(process.env.RESEND_API_KEY);
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const resend_1 = require("resend");
+const resend = new resend_1.Resend(process.env.RESEND_API_KEY);
 const sendEmail = async ({ to, subject, text, html }) => {
     await resend.emails.send({
         to,
@@ -9,4 +11,4 @@ const sendEmail = async ({ to, subject, text, html }) => {
         html,
     });
 };
-export default sendEmail;
+exports.default = sendEmail;

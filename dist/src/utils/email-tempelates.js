@@ -1,3 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.kycRejectedTemplate = exports.kycApprovedTemplate = exports.signInOTPTemplate = exports.passwordResetTemplate = exports.emailVerificationTemplate = void 0;
 const baseStyle = `
   font-family: Arial, sans-serif;
   max-width: 600px;
@@ -22,7 +25,7 @@ const footerStyle = `
   border-top: 1px solid #eeeeee;
   padding-top: 16px;
 `;
-export const emailVerificationTemplate = (otp) => ({
+const emailVerificationTemplate = (otp) => ({
     subject: "Verify your InkingiPro email",
     html: `
     <div style="${baseStyle}">
@@ -38,7 +41,8 @@ export const emailVerificationTemplate = (otp) => ({
   `,
     text: `Your InkingiPro email verification code is: ${otp}\n\nThis code expires in 5 minutes.\n\nIf you did not create an account, ignore this email.`,
 });
-export const passwordResetTemplate = (otp) => ({
+exports.emailVerificationTemplate = emailVerificationTemplate;
+const passwordResetTemplate = (otp) => ({
     subject: "Reset your InkingiPro password",
     html: `
     <div style="${baseStyle}">
@@ -54,7 +58,8 @@ export const passwordResetTemplate = (otp) => ({
   `,
     text: `Your InkingiPro password reset code is: ${otp}\n\nThis code expires in 5 minutes.\n\nIf you did not request a password reset, ignore this email.`,
 });
-export const signInOTPTemplate = (otp) => ({
+exports.passwordResetTemplate = passwordResetTemplate;
+const signInOTPTemplate = (otp) => ({
     subject: "Your InkingiPro sign-in code",
     html: `
     <div style="${baseStyle}">
@@ -70,7 +75,8 @@ export const signInOTPTemplate = (otp) => ({
   `,
     text: `Your InkingiPro sign-in code is: ${otp}\n\nThis code expires in 5 minutes.\n\nIf you did not attempt to sign in, reset your password immediately.`,
 });
-export const kycApprovedTemplate = (name) => ({
+exports.signInOTPTemplate = signInOTPTemplate;
+const kycApprovedTemplate = (name) => ({
     subject: "Your identity has been verified — InkingiPro",
     html: `
     <div style="${baseStyle}">
@@ -100,7 +106,8 @@ export const kycApprovedTemplate = (name) => ({
   `,
     text: `Hi ${name},\n\nYour InkingiPro identity has been verified. You now have full access to the platform.\n\nVisit: ${process.env.FRONTEND_URL}`,
 });
-export const kycRejectedTemplate = (name, reason) => ({
+exports.kycApprovedTemplate = kycApprovedTemplate;
+const kycRejectedTemplate = (name, reason) => ({
     subject: "Action required — InkingiPro identity verification",
     html: `
     <div style="${baseStyle}">
@@ -136,3 +143,4 @@ export const kycRejectedTemplate = (name, reason) => ({
   `,
     text: `Hi ${name},\n\nYour InkingiPro identity verification was unsuccessful.\n\nReason: ${reason}\n\nPlease re-submit your documents via the app.\n\nVisit: ${process.env.FRONTEND_URL}`,
 });
+exports.kycRejectedTemplate = kycRejectedTemplate;

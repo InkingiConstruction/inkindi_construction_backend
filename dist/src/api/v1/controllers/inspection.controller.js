@@ -1,6 +1,12 @@
-import { InspectionDecision } from "@prisma/client";
-import cloudinary from "../../../lib/cloudinary.js";
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteInspection = exports.updateInspection = exports.getInspectionById = exports.getInspections = exports.createInspection = void 0;
+const client_1 = require("@prisma/client");
+const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJsonField = (value) => {
     if (!value)
@@ -15,9 +21,9 @@ const parseJsonField = (value) => {
     }
 };
 const isInspectionDecision = (value) => typeof value === "string" &&
-    Object.values(InspectionDecision).includes(value);
+    Object.values(client_1.InspectionDecision).includes(value);
 const uploadImage = (file, folder) => new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({
+    const stream = cloudinary_js_1.default.uploader.upload_stream({
         folder,
         resource_type: "image",
     }, (error, result) => {
@@ -50,7 +56,7 @@ const getInspectionPhotos = (value) => {
 const deleteCloudinaryFiles = async (publicIds) => {
     if (publicIds.length === 0)
         return;
-    await Promise.allSettled(publicIds.map((publicId) => cloudinary.uploader.destroy(publicId)));
+    await Promise.allSettled(publicIds.map((publicId) => cloudinary_js_1.default.uploader.destroy(publicId)));
 };
 const canReadMilestoneInspection = (milestone, userId, role) => {
     if (role === "admin")
@@ -105,7 +111,7 @@ const buildInspectionUpdateData = (body, uploadedPhotos, signatureUrl, existingP
     }
     return data;
 };
-export const createInspection = async (req, res) => {
+const createInspection = async (req, res) => {
     try {
         const { milestoneId, checklist, rating, notes, decision, attemptNumber } = req.body;
         if (!milestoneId) {
@@ -114,7 +120,7 @@ export const createInspection = async (req, res) => {
         if (decision !== undefined && !isInspectionDecision(decision)) {
             return res.status(400).json({ message: "Invalid inspection decision" });
         }
-        const milestone = await prisma.milestone.findUnique({
+        const milestone = await prisma_js_1.default.milestone.findUnique({
             where: { id: String(milestoneId) },
             include: {
                 project: {
@@ -146,7 +152,7 @@ export const createInspection = async (req, res) => {
             publicId: photo.public_id,
         }));
         const nextMilestoneStatus = milestoneStatusForDecision(decision);
-        const inspection = await prisma.$transaction(async (tx) => {
+        const inspection = await prisma_js_1.default.$transaction(async (tx) => {
             const createdInspection = await tx.inspection.create({
                 data: {
                     milestoneId: milestone.id,
@@ -200,7 +206,8 @@ export const createInspection = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getInspections = async (req, res) => {
+exports.createInspection = createInspection;
+const getInspections = async (req, res) => {
     try {
         const milestoneId = typeof req.query.milestoneId === "string"
             ? req.query.milestoneId
@@ -210,7 +217,7 @@ export const getInspections = async (req, res) => {
         if (decision !== undefined && !isInspectionDecision(decision)) {
             return res.status(400).json({ message: "Invalid inspection decision" });
         }
-        const inspections = await prisma.inspection.findMany({
+        const inspections = await prisma_js_1.default.inspection.findMany({
             where: {
                 ...(milestoneId ? { milestoneId } : {}),
                 ...(decision ? { decision } : {}),
@@ -263,13 +270,14 @@ export const getInspections = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getInspectionById = async (req, res) => {
+exports.getInspections = getInspections;
+const getInspectionById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Inspection ID is required" });
         }
-        const inspection = await prisma.inspection.findUnique({
+        const inspection = await prisma_js_1.default.inspection.findUnique({
             where: { id },
             include: {
                 milestone: {
@@ -305,7 +313,8 @@ export const getInspectionById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateInspection = async (req, res) => {
+exports.getInspectionById = getInspectionById;
+const updateInspection = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const { decision } = req.body;
@@ -315,7 +324,7 @@ export const updateInspection = async (req, res) => {
         if (decision !== undefined && !isInspectionDecision(decision)) {
             return res.status(400).json({ message: "Invalid inspection decision" });
         }
-        const existingInspection = await prisma.inspection.findUnique({
+        const existingInspection = await prisma_js_1.default.inspection.findUnique({
             where: { id },
             include: {
                 milestone: {
@@ -351,7 +360,7 @@ export const updateInspection = async (req, res) => {
         }));
         const currentPhotos = getInspectionPhotos(existingInspection.photos);
         const nextMilestoneStatus = milestoneStatusForDecision(decision);
-        const inspection = await prisma.$transaction(async (tx) => {
+        const inspection = await prisma_js_1.default.$transaction(async (tx) => {
             const updatedInspection = await tx.inspection.update({
                 where: { id },
                 data: buildInspectionUpdateData(req.body, uploadedPhotos, signatureUpload?.secure_url, currentPhotos),
@@ -393,13 +402,14 @@ export const updateInspection = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteInspection = async (req, res) => {
+exports.updateInspection = updateInspection;
+const deleteInspection = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Inspection ID is required" });
         }
-        const inspection = await prisma.inspection.findUnique({
+        const inspection = await prisma_js_1.default.inspection.findUnique({
             where: { id },
             include: {
                 milestone: {
@@ -421,7 +431,7 @@ export const deleteInspection = async (req, res) => {
                 message: "Only an assigned supervisor or admin can delete this inspection",
             });
         }
-        await prisma.inspection.delete({
+        await prisma_js_1.default.inspection.delete({
             where: { id },
         });
         await deleteCloudinaryFiles(getInspectionPhotos(inspection.photos).map((photo) => photo.publicId));
@@ -432,3 +442,4 @@ export const deleteInspection = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteInspection = deleteInspection;

@@ -1,3 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.openApiDocument = void 0;
 const allRoles = ["client", "engineer", "supervisor", "supplier", "admin"];
 const modelRoutes = [
     {
@@ -572,7 +575,7 @@ const paths = routes.reduce((result, route) => {
     };
     return result;
 }, {});
-export const openApiDocument = {
+exports.openApiDocument = {
     openapi: "3.0.3",
     info: {
         title: "Inkingi Construction API",
@@ -580,6 +583,10 @@ export const openApiDocument = {
         description: "Versioned REST API documentation for Inkingi Construction backend.",
     },
     servers: [
+        {
+            url: "https://inkindi-construction-backend.onrender.com/api/v1",
+            description: "Production",
+        },
         {
             url: "http://localhost:3000/api/v1",
             description: "Local development",

@@ -1,35 +1,43 @@
-export const createDispute = async (req, res) => {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteDispute = exports.updateDispute = exports.getDisputeById = exports.getDisputes = exports.createDispute = void 0;
+const createDispute = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getDisputes = async (req, res) => {
+exports.createDispute = createDispute;
+const getDisputes = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getDisputeById = async (req, res) => {
+exports.getDisputes = getDisputes;
+const getDisputeById = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateDispute = async (req, res) => {
+exports.getDisputeById = getDisputeById;
+const updateDispute = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteDispute = async (req, res) => {
+exports.updateDispute = updateDispute;
+const deleteDispute = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteDispute = deleteDispute;

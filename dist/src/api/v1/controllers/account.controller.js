@@ -1,35 +1,43 @@
-export const createAccount = async (req, res) => {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteAccount = exports.updateAccount = exports.getAccountById = exports.getAccounts = exports.createAccount = void 0;
+const createAccount = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getAccounts = async (req, res) => {
+exports.createAccount = createAccount;
+const getAccounts = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getAccountById = async (req, res) => {
+exports.getAccounts = getAccounts;
+const getAccountById = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateAccount = async (req, res) => {
+exports.getAccountById = getAccountById;
+const updateAccount = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteAccount = async (req, res) => {
+exports.updateAccount = updateAccount;
+const deleteAccount = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteAccount = deleteAccount;

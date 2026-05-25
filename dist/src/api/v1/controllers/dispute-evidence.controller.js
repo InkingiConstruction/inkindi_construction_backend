@@ -1,35 +1,43 @@
-export const createDisputeEvidence = async (req, res) => {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteDisputeEvidence = exports.updateDisputeEvidence = exports.getDisputeEvidenceById = exports.getDisputeEvidences = exports.createDisputeEvidence = void 0;
+const createDisputeEvidence = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getDisputeEvidences = async (req, res) => {
+exports.createDisputeEvidence = createDisputeEvidence;
+const getDisputeEvidences = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getDisputeEvidenceById = async (req, res) => {
+exports.getDisputeEvidences = getDisputeEvidences;
+const getDisputeEvidenceById = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateDisputeEvidence = async (req, res) => {
+exports.getDisputeEvidenceById = getDisputeEvidenceById;
+const updateDisputeEvidence = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteDisputeEvidence = async (req, res) => {
+exports.updateDisputeEvidence = updateDisputeEvidence;
+const deleteDisputeEvidence = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteDisputeEvidence = deleteDisputeEvidence;

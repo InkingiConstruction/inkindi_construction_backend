@@ -1,7 +1,13 @@
-import prisma from "../../../lib/prisma.js";
-export const getEngineers = async (req, res) => {
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteUser = exports.updateUser = exports.getUserById = exports.getUsers = exports.createUser = exports.getEngineers = void 0;
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
+const getEngineers = async (req, res) => {
     try {
-        const engineers = await prisma.user.findMany({
+        const engineers = await prisma_js_1.default.user.findMany({
             where: {
                 role: "engineer",
                 banned: false,
@@ -28,38 +34,44 @@ export const getEngineers = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const createUser = async (req, res) => {
+exports.getEngineers = getEngineers;
+const createUser = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getUsers = async (req, res) => {
+exports.createUser = createUser;
+const getUsers = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getUserById = async (req, res) => {
+exports.getUsers = getUsers;
+const getUserById = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateUser = async (req, res) => {
+exports.getUserById = getUserById;
+const updateUser = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteUser = async (req, res) => {
+exports.updateUser = updateUser;
+const deleteUser = async (req, res) => {
     try {
     }
     catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteUser = deleteUser;

@@ -1,6 +1,12 @@
-import { DeliveryStatus } from "@prisma/client";
-import cloudinary from "../../../lib/cloudinary.js";
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteDelivery = exports.updateDelivery = exports.getDeliveryById = exports.getDeliverys = exports.createDelivery = void 0;
+const client_1 = require("@prisma/client");
+const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJsonField = (value) => {
     if (!value)
@@ -15,9 +21,9 @@ const parseJsonField = (value) => {
     }
 };
 const isDeliveryStatus = (value) => typeof value === "string" &&
-    Object.values(DeliveryStatus).includes(value);
+    Object.values(client_1.DeliveryStatus).includes(value);
 const uploadImage = (file, folder) => new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({
+    const stream = cloudinary_js_1.default.uploader.upload_stream({
         folder,
         resource_type: "image",
     }, (error, result) => {
@@ -64,7 +70,7 @@ const getStatusDates = (status) => ({
         : undefined,
     confirmedAt: status === "confirmed" ? new Date() : undefined,
 });
-export const createDelivery = async (req, res) => {
+const createDelivery = async (req, res) => {
     try {
         const { purchaseOrderId, status, startGps, endGps, notes, rejectionReason, } = req.body;
         const files = req.files || [];
@@ -74,7 +80,7 @@ export const createDelivery = async (req, res) => {
         if (status !== undefined && !isDeliveryStatus(status)) {
             return res.status(400).json({ message: "Invalid delivery status" });
         }
-        const purchaseOrder = await prisma.purchaseOrder.findUnique({
+        const purchaseOrder = await prisma_js_1.default.purchaseOrder.findUnique({
             where: { id: String(purchaseOrderId) },
             include: {
                 deliveries: true,
@@ -107,7 +113,7 @@ export const createDelivery = async (req, res) => {
             publicId: upload.public_id,
         }));
         const nextStatus = status || "preparing";
-        const delivery = await prisma.delivery.create({
+        const delivery = await prisma_js_1.default.delivery.create({
             data: {
                 purchaseOrderId: purchaseOrder.id,
                 supplierId: req.user.id,
@@ -152,7 +158,8 @@ export const createDelivery = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getDeliverys = async (req, res) => {
+exports.createDelivery = createDelivery;
+const getDeliverys = async (req, res) => {
     try {
         const purchaseOrderId = typeof req.query.purchaseOrderId === "string"
             ? req.query.purchaseOrderId
@@ -161,7 +168,7 @@ export const getDeliverys = async (req, res) => {
         if (status !== undefined && !isDeliveryStatus(status)) {
             return res.status(400).json({ message: "Invalid delivery status" });
         }
-        const deliveries = await prisma.delivery.findMany({
+        const deliveries = await prisma_js_1.default.delivery.findMany({
             where: {
                 ...(purchaseOrderId ? { purchaseOrderId } : {}),
                 ...(status ? { status } : {}),
@@ -221,13 +228,14 @@ export const getDeliverys = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getDeliveryById = async (req, res) => {
+exports.getDeliverys = getDeliverys;
+const getDeliveryById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Delivery ID is required" });
         }
-        const delivery = await prisma.delivery.findUnique({
+        const delivery = await prisma_js_1.default.delivery.findUnique({
             where: { id },
             include: {
                 purchaseOrder: {
@@ -269,7 +277,8 @@ export const getDeliveryById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateDelivery = async (req, res) => {
+exports.getDeliveryById = getDeliveryById;
+const updateDelivery = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const { status, startGps, endGps, proofPhotos, notes, rejectionReason, } = req.body;
@@ -280,7 +289,7 @@ export const updateDelivery = async (req, res) => {
         if (status !== undefined && !isDeliveryStatus(status)) {
             return res.status(400).json({ message: "Invalid delivery status" });
         }
-        const existingDelivery = await prisma.delivery.findUnique({
+        const existingDelivery = await prisma_js_1.default.delivery.findUnique({
             where: { id },
             include: {
                 purchaseOrder: {
@@ -327,7 +336,7 @@ export const updateDelivery = async (req, res) => {
             publicId: upload.public_id,
         }));
         const existingProofPhotos = getProofPhotos(existingDelivery.proofPhotos);
-        const delivery = await prisma.$transaction(async (tx) => {
+        const delivery = await prisma_js_1.default.$transaction(async (tx) => {
             const updatedDelivery = await tx.delivery.update({
                 where: { id },
                 data: {
@@ -387,13 +396,14 @@ export const updateDelivery = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteDelivery = async (req, res) => {
+exports.updateDelivery = updateDelivery;
+const deleteDelivery = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Delivery ID is required" });
         }
-        const delivery = await prisma.delivery.findUnique({
+        const delivery = await prisma_js_1.default.delivery.findUnique({
             where: { id },
         });
         if (!delivery) {
@@ -409,7 +419,7 @@ export const deleteDelivery = async (req, res) => {
                 message: "Confirmed delivery cannot be deleted",
             });
         }
-        await prisma.delivery.delete({
+        await prisma_js_1.default.delivery.delete({
             where: { id },
         });
         return res.json({ message: "Delivery deleted successfully" });
@@ -419,3 +429,4 @@ export const deleteDelivery = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteDelivery = deleteDelivery;

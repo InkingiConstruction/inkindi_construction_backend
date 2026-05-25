@@ -1,8 +1,14 @@
-import cloudinary from "../../../lib/cloudinary.js";
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteProgressPhoto = exports.updateProgressPhoto = exports.getProgressPhotoById = exports.getProgressPhotos = exports.createProgressPhoto = void 0;
+const cloudinary_js_1 = __importDefault(require("../../../lib/cloudinary.js"));
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const uploadMedia = (file) => new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({
+    const stream = cloudinary_js_1.default.uploader.upload_stream({
         folder: "inkingi/projects/progress",
         resource_type: file.mimetype.startsWith("video/") ? "video" : "image",
     }, (error, result) => {
@@ -15,7 +21,7 @@ const uploadMedia = (file) => new Promise((resolve, reject) => {
     stream.end(file.buffer);
 });
 const deleteCloudinaryFile = async (publicId, isVideo) => {
-    await cloudinary.uploader.destroy(publicId, {
+    await cloudinary_js_1.default.uploader.destroy(publicId, {
         resource_type: isVideo ? "video" : "image",
     });
 };
@@ -59,7 +65,7 @@ const canManageProgressPhoto = (photo, userId, role) => {
         return true;
     return canUploadProgress(photo.project, userId, role);
 };
-export const createProgressPhoto = async (req, res) => {
+const createProgressPhoto = async (req, res) => {
     try {
         const { projectId, milestoneId, gpsLocation, caption, videoDuration } = req.body;
         const files = req.files || [];
@@ -69,7 +75,7 @@ export const createProgressPhoto = async (req, res) => {
         if (files.length === 0) {
             return res.status(400).json({ message: "At least one file is required" });
         }
-        const project = await prisma.project.findUnique({
+        const project = await prisma_js_1.default.project.findUnique({
             where: { id: String(projectId) },
             include: {
                 projectMembers: true,
@@ -84,7 +90,7 @@ export const createProgressPhoto = async (req, res) => {
             });
         }
         if (milestoneId) {
-            const milestone = await prisma.milestone.findFirst({
+            const milestone = await prisma_js_1.default.milestone.findFirst({
                 where: {
                     id: String(milestoneId),
                     projectId: project.id,
@@ -100,7 +106,7 @@ export const createProgressPhoto = async (req, res) => {
         const progressPhotos = await Promise.all(uploads.map((upload, index) => {
             const file = files[index];
             const isVideo = file.mimetype.startsWith("video/");
-            return prisma.progressPhoto.create({
+            return prisma_js_1.default.progressPhoto.create({
                 data: {
                     projectId: project.id,
                     milestoneId: milestoneId || undefined,
@@ -137,13 +143,14 @@ export const createProgressPhoto = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getProgressPhotos = async (req, res) => {
+exports.createProgressPhoto = createProgressPhoto;
+const getProgressPhotos = async (req, res) => {
     try {
         const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
         const milestoneId = typeof req.query.milestoneId === "string"
             ? req.query.milestoneId
             : undefined;
-        const progressPhotos = await prisma.progressPhoto.findMany({
+        const progressPhotos = await prisma_js_1.default.progressPhoto.findMany({
             where: {
                 ...(projectId ? { projectId } : {}),
                 ...(milestoneId ? { milestoneId } : {}),
@@ -190,13 +197,14 @@ export const getProgressPhotos = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getProgressPhotoById = async (req, res) => {
+exports.getProgressPhotos = getProgressPhotos;
+const getProgressPhotoById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Progress photo ID is required" });
         }
-        const progressPhoto = await prisma.progressPhoto.findUnique({
+        const progressPhoto = await prisma_js_1.default.progressPhoto.findUnique({
             where: { id },
             include: {
                 project: {
@@ -229,7 +237,8 @@ export const getProgressPhotoById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateProgressPhoto = async (req, res) => {
+exports.getProgressPhotoById = getProgressPhotoById;
+const updateProgressPhoto = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const { milestoneId, gpsLocation, caption, videoDuration } = req.body;
@@ -238,7 +247,7 @@ export const updateProgressPhoto = async (req, res) => {
         if (!id) {
             return res.status(400).json({ message: "Progress photo ID is required" });
         }
-        const existingPhoto = await prisma.progressPhoto.findUnique({
+        const existingPhoto = await prisma_js_1.default.progressPhoto.findUnique({
             where: { id },
             include: {
                 project: {
@@ -257,7 +266,7 @@ export const updateProgressPhoto = async (req, res) => {
             });
         }
         if (milestoneId) {
-            const milestone = await prisma.milestone.findFirst({
+            const milestone = await prisma_js_1.default.milestone.findFirst({
                 where: {
                     id: String(milestoneId),
                     projectId: existingPhoto.projectId,
@@ -292,7 +301,7 @@ export const updateProgressPhoto = async (req, res) => {
             data.publicId = uploaded.public_id;
             data.isVideo = file.mimetype.startsWith("video/");
         }
-        const progressPhoto = await prisma.progressPhoto.update({
+        const progressPhoto = await prisma_js_1.default.progressPhoto.update({
             where: { id },
             data,
             include: {
@@ -322,13 +331,14 @@ export const updateProgressPhoto = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteProgressPhoto = async (req, res) => {
+exports.updateProgressPhoto = updateProgressPhoto;
+const deleteProgressPhoto = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Progress photo ID is required" });
         }
-        const progressPhoto = await prisma.progressPhoto.findUnique({
+        const progressPhoto = await prisma_js_1.default.progressPhoto.findUnique({
             where: { id },
             include: {
                 project: {
@@ -346,7 +356,7 @@ export const deleteProgressPhoto = async (req, res) => {
                 message: "Only the uploader, project engineer, assigned supervisor, or admin can delete this media",
             });
         }
-        await prisma.progressPhoto.delete({
+        await prisma_js_1.default.progressPhoto.delete({
             where: { id },
         });
         await deleteCloudinaryFile(progressPhoto.publicId, progressPhoto.isVideo);
@@ -357,3 +367,4 @@ export const deleteProgressPhoto = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteProgressPhoto = deleteProgressPhoto;

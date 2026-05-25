@@ -1,5 +1,11 @@
-import { PaymentMethod, Prisma, TransactionStatus, TransactionType, } from "@prisma/client";
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteTransaction = exports.updateTransaction = exports.getTransactionById = exports.getTransactions = exports.createTransaction = void 0;
+const client_1 = require("@prisma/client");
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJsonField = (value) => {
     if (!value)
@@ -14,11 +20,11 @@ const parseJsonField = (value) => {
     }
 };
 const isTransactionType = (value) => typeof value === "string" &&
-    Object.values(TransactionType).includes(value);
+    Object.values(client_1.TransactionType).includes(value);
 const isTransactionStatus = (value) => typeof value === "string" &&
-    Object.values(TransactionStatus).includes(value);
+    Object.values(client_1.TransactionStatus).includes(value);
 const isPaymentMethod = (value) => typeof value === "string" &&
-    Object.values(PaymentMethod).includes(value);
+    Object.values(client_1.PaymentMethod).includes(value);
 const canReadProjectTransactions = (project, userId, role) => {
     if (role === "admin")
         return true;
@@ -38,7 +44,7 @@ const canCreateTransaction = (type, project, userId, role) => {
 const validateMilestone = async (milestoneId, projectId, type) => {
     if (!milestoneId)
         return null;
-    const milestone = await prisma.milestone.findFirst({
+    const milestone = await prisma_js_1.default.milestone.findFirst({
         where: {
             id: String(milestoneId),
             projectId,
@@ -69,8 +75,8 @@ const validateMilestone = async (milestoneId, projectId, type) => {
     return { error: null, milestone };
 };
 const applyCompletedTransaction = (escrowAccount, type, amount) => {
-    const nextBalance = new Prisma.Decimal(escrowAccount.balance);
-    const nextLockedBalance = new Prisma.Decimal(escrowAccount.lockedBalance);
+    const nextBalance = new client_1.Prisma.Decimal(escrowAccount.balance);
+    const nextLockedBalance = new client_1.Prisma.Decimal(escrowAccount.lockedBalance);
     if (type === "deposit") {
         return {
             balance: nextBalance.plus(amount),
@@ -113,8 +119,8 @@ const applyCompletedTransaction = (escrowAccount, type, amount) => {
     };
 };
 const reverseCompletedTransaction = (escrowAccount, type, amount) => {
-    const nextBalance = new Prisma.Decimal(escrowAccount.balance);
-    const nextLockedBalance = new Prisma.Decimal(escrowAccount.lockedBalance);
+    const nextBalance = new client_1.Prisma.Decimal(escrowAccount.balance);
+    const nextLockedBalance = new client_1.Prisma.Decimal(escrowAccount.lockedBalance);
     if (type === "deposit") {
         if (nextBalance.lessThan(amount)) {
             return { error: "Insufficient available escrow balance to reverse deposit" };
@@ -156,7 +162,7 @@ const reverseCompletedTransaction = (escrowAccount, type, amount) => {
         lockedBalance: nextLockedBalance,
     };
 };
-export const createTransaction = async (req, res) => {
+const createTransaction = async (req, res) => {
     try {
         const { escrowAccountId, projectId, milestoneId, type, method, amount, status, reference, metadata, } = req.body;
         if (!escrowAccountId && !projectId) {
@@ -178,11 +184,11 @@ export const createTransaction = async (req, res) => {
         if (method !== undefined && method !== null && !isPaymentMethod(method)) {
             return res.status(400).json({ message: "Invalid payment method" });
         }
-        const transactionAmount = new Prisma.Decimal(amount);
+        const transactionAmount = new client_1.Prisma.Decimal(amount);
         if (transactionAmount.lessThanOrEqualTo(0)) {
             return res.status(400).json({ message: "amount must be greater than 0" });
         }
-        const escrowAccount = await prisma.escrowAccount.findFirst({
+        const escrowAccount = await prisma_js_1.default.escrowAccount.findFirst({
             where: {
                 ...(escrowAccountId
                     ? { id: String(escrowAccountId) }
@@ -207,7 +213,7 @@ export const createTransaction = async (req, res) => {
                 .json(milestoneResult.error.body);
         }
         const nextStatus = status || "pending";
-        const transaction = await prisma.$transaction(async (tx) => {
+        const transaction = await prisma_js_1.default.$transaction(async (tx) => {
             let nextEscrowBalance;
             if (nextStatus === "completed") {
                 const applied = applyCompletedTransaction(escrowAccount, type, transactionAmount);
@@ -284,7 +290,8 @@ export const createTransaction = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getTransactions = async (req, res) => {
+exports.createTransaction = createTransaction;
+const getTransactions = async (req, res) => {
     try {
         const escrowAccountId = typeof req.query.escrowAccountId === "string"
             ? req.query.escrowAccountId
@@ -301,7 +308,7 @@ export const getTransactions = async (req, res) => {
         if (type !== undefined && !isTransactionType(type)) {
             return res.status(400).json({ message: "Invalid transaction type" });
         }
-        const transactions = await prisma.transaction.findMany({
+        const transactions = await prisma_js_1.default.transaction.findMany({
             where: {
                 ...(escrowAccountId ? { escrowAccountId } : {}),
                 ...(milestoneId ? { milestoneId } : {}),
@@ -355,13 +362,14 @@ export const getTransactions = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getTransactionById = async (req, res) => {
+exports.getTransactions = getTransactions;
+const getTransactionById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Transaction ID is required" });
         }
-        const transaction = await prisma.transaction.findUnique({
+        const transaction = await prisma_js_1.default.transaction.findUnique({
             where: { id },
             include: {
                 escrowAccount: {
@@ -400,7 +408,8 @@ export const getTransactionById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateTransaction = async (req, res) => {
+exports.getTransactionById = getTransactionById;
+const updateTransaction = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const { method, status, reference, metadata } = req.body;
@@ -413,7 +422,7 @@ export const updateTransaction = async (req, res) => {
         if (method !== undefined && method !== null && !isPaymentMethod(method)) {
             return res.status(400).json({ message: "Invalid payment method" });
         }
-        const existingTransaction = await prisma.transaction.findUnique({
+        const existingTransaction = await prisma_js_1.default.transaction.findUnique({
             where: { id },
             include: {
                 escrowAccount: true,
@@ -435,7 +444,7 @@ export const updateTransaction = async (req, res) => {
                 currentStatus: existingTransaction.milestone?.status,
             });
         }
-        const transaction = await prisma.$transaction(async (tx) => {
+        const transaction = await prisma_js_1.default.$transaction(async (tx) => {
             if (existingTransaction.status !== "completed" &&
                 nextStatus === "completed") {
                 const applied = applyCompletedTransaction(existingTransaction.escrowAccount, existingTransaction.type, existingTransaction.amount);
@@ -514,13 +523,14 @@ export const updateTransaction = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteTransaction = async (req, res) => {
+exports.updateTransaction = updateTransaction;
+const deleteTransaction = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Transaction ID is required" });
         }
-        const transaction = await prisma.transaction.findUnique({
+        const transaction = await prisma_js_1.default.transaction.findUnique({
             where: { id },
         });
         if (!transaction) {
@@ -531,7 +541,7 @@ export const deleteTransaction = async (req, res) => {
                 message: "Completed transactions cannot be deleted. Mark the transaction as reversed instead.",
             });
         }
-        await prisma.transaction.delete({
+        await prisma_js_1.default.transaction.delete({
             where: { id },
         });
         return res.json({ message: "Transaction deleted successfully" });
@@ -541,3 +551,4 @@ export const deleteTransaction = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteTransaction = deleteTransaction;

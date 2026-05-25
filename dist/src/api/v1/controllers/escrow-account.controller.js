@@ -1,5 +1,11 @@
-import { Prisma } from "@prisma/client";
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteEscrowAccount = exports.updateEscrowAccount = exports.getEscrowAccountById = exports.getEscrowAccounts = exports.createEscrowAccount = void 0;
+const client_1 = require("@prisma/client");
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const canReadProjectEscrow = (project, userId, role) => {
     if (role === "admin")
@@ -10,13 +16,13 @@ const canReadProjectEscrow = (project, userId, role) => {
         return true;
     return Boolean(project.projectMembers?.some((member) => member.userId === userId && member.status === "accepted"));
 };
-export const createEscrowAccount = async (req, res) => {
+const createEscrowAccount = async (req, res) => {
     try {
         const { projectId, currency, balance, lockedBalance } = req.body;
         if (!projectId) {
             return res.status(400).json({ message: "projectId is required" });
         }
-        const project = await prisma.project.findUnique({
+        const project = await prisma_js_1.default.project.findUnique({
             where: { id: String(projectId) },
             include: {
                 escrowAccount: true,
@@ -31,13 +37,13 @@ export const createEscrowAccount = async (req, res) => {
                 escrowAccount: project.escrowAccount,
             });
         }
-        const escrowAccount = await prisma.escrowAccount.create({
+        const escrowAccount = await prisma_js_1.default.escrowAccount.create({
             data: {
                 projectId: project.id,
                 currency: currency || project.currency,
-                balance: balance !== undefined ? new Prisma.Decimal(balance) : undefined,
+                balance: balance !== undefined ? new client_1.Prisma.Decimal(balance) : undefined,
                 lockedBalance: lockedBalance !== undefined
-                    ? new Prisma.Decimal(lockedBalance)
+                    ? new client_1.Prisma.Decimal(lockedBalance)
                     : undefined,
             },
             include: {
@@ -55,10 +61,11 @@ export const createEscrowAccount = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getEscrowAccounts = async (req, res) => {
+exports.createEscrowAccount = createEscrowAccount;
+const getEscrowAccounts = async (req, res) => {
     try {
         const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
-        const escrowAccounts = await prisma.escrowAccount.findMany({
+        const escrowAccounts = await prisma_js_1.default.escrowAccount.findMany({
             where: {
                 ...(projectId ? { projectId } : {}),
                 ...(req.user.role === "admin"
@@ -95,13 +102,14 @@ export const getEscrowAccounts = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getEscrowAccountById = async (req, res) => {
+exports.getEscrowAccounts = getEscrowAccounts;
+const getEscrowAccountById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Escrow account ID is required" });
         }
-        const escrowAccount = await prisma.escrowAccount.findUnique({
+        const escrowAccount = await prisma_js_1.default.escrowAccount.findUnique({
             where: { id },
             include: {
                 project: {
@@ -141,26 +149,27 @@ export const getEscrowAccountById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateEscrowAccount = async (req, res) => {
+exports.getEscrowAccountById = getEscrowAccountById;
+const updateEscrowAccount = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const { currency, balance, lockedBalance } = req.body;
         if (!id) {
             return res.status(400).json({ message: "Escrow account ID is required" });
         }
-        const existingEscrowAccount = await prisma.escrowAccount.findUnique({
+        const existingEscrowAccount = await prisma_js_1.default.escrowAccount.findUnique({
             where: { id },
         });
         if (!existingEscrowAccount) {
             return res.status(404).json({ message: "Escrow account not found" });
         }
-        const escrowAccount = await prisma.escrowAccount.update({
+        const escrowAccount = await prisma_js_1.default.escrowAccount.update({
             where: { id },
             data: {
                 currency,
-                balance: balance !== undefined ? new Prisma.Decimal(balance) : undefined,
+                balance: balance !== undefined ? new client_1.Prisma.Decimal(balance) : undefined,
                 lockedBalance: lockedBalance !== undefined
-                    ? new Prisma.Decimal(lockedBalance)
+                    ? new client_1.Prisma.Decimal(lockedBalance)
                     : undefined,
             },
             include: {
@@ -180,13 +189,14 @@ export const updateEscrowAccount = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteEscrowAccount = async (req, res) => {
+exports.updateEscrowAccount = updateEscrowAccount;
+const deleteEscrowAccount = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Escrow account ID is required" });
         }
-        const escrowAccount = await prisma.escrowAccount.findUnique({
+        const escrowAccount = await prisma_js_1.default.escrowAccount.findUnique({
             where: { id },
             include: {
                 _count: {
@@ -204,7 +214,7 @@ export const deleteEscrowAccount = async (req, res) => {
                 message: "Escrow account with transactions cannot be deleted",
             });
         }
-        await prisma.escrowAccount.delete({
+        await prisma_js_1.default.escrowAccount.delete({
             where: { id },
         });
         return res.json({ message: "Escrow account deleted successfully" });
@@ -214,3 +224,4 @@ export const deleteEscrowAccount = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteEscrowAccount = deleteEscrowAccount;

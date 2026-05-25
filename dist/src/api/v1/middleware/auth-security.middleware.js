@@ -1,4 +1,7 @@
-import { auth } from "../../../lib/auth.js";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.authenticatedUserRateLimit = exports.emailSignInLockout = void 0;
+const auth_js_1 = require("../../../lib/auth.js");
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
 const USER_RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -38,7 +41,7 @@ const sendAuthResponse = async (authResponse, res) => {
     const body = await authResponse.text();
     return res.status(authResponse.status).send(body);
 };
-export const emailSignInLockout = async (req, res) => {
+const emailSignInLockout = async (req, res) => {
     try {
         const email = normalizeEmail(req.body?.email);
         const now = Date.now();
@@ -53,7 +56,7 @@ export const emailSignInLockout = async (req, res) => {
                 lockedUntil: new Date(state.lockedUntil).toISOString(),
             });
         }
-        const authResponse = await auth.handler(new Request(getRequestUrl(req), {
+        const authResponse = await auth_js_1.auth.handler(new Request(getRequestUrl(req), {
             method: "POST",
             headers: getForwardHeaders(req),
             body: JSON.stringify(req.body),
@@ -78,7 +81,8 @@ export const emailSignInLockout = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const authenticatedUserRateLimit = (req, res, next) => {
+exports.emailSignInLockout = emailSignInLockout;
+const authenticatedUserRateLimit = (req, res, next) => {
     const userId = req.user?.id;
     if (!userId)
         return next();
@@ -106,3 +110,4 @@ export const authenticatedUserRateLimit = (req, res, next) => {
     userRateLimits.set(userId, state);
     return next();
 };
+exports.authenticatedUserRateLimit = authenticatedUserRateLimit;

@@ -1,5 +1,11 @@
-import { Prisma, RfqStatus } from "@prisma/client";
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteRfq = exports.updateRfq = exports.getRfqById = exports.getRfqs = exports.createRfq = void 0;
+const client_1 = require("@prisma/client");
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJsonField = (value) => {
     if (!value)
@@ -14,7 +20,7 @@ const parseJsonField = (value) => {
     }
 };
 const isRfqStatus = (value) => typeof value === "string" &&
-    Object.values(RfqStatus).includes(value);
+    Object.values(client_1.RfqStatus).includes(value);
 const canReadProject = (project, userId, role) => {
     if (role === "admin" || role === "supplier")
         return true;
@@ -25,7 +31,7 @@ const canReadProject = (project, userId, role) => {
     return Boolean(project.projectMembers?.some((member) => member.userId === userId && member.status === "accepted"));
 };
 const canManageRfq = (rfq, userId, role) => role === "admin" || (role === "engineer" && rfq.engineerId === userId);
-export const createRfq = async (req, res) => {
+const createRfq = async (req, res) => {
     try {
         const { projectId, milestoneId, title, specs, quantity, unit, deadline, expiresAt, status, } = req.body;
         if (!projectId || !milestoneId || !title || !quantity || !unit || !deadline) {
@@ -36,7 +42,7 @@ export const createRfq = async (req, res) => {
         if (status !== undefined && !isRfqStatus(status)) {
             return res.status(400).json({ message: "Invalid RFQ status" });
         }
-        const milestone = await prisma.milestone.findFirst({
+        const milestone = await prisma_js_1.default.milestone.findFirst({
             where: {
                 id: String(milestoneId),
                 projectId: String(projectId),
@@ -55,14 +61,14 @@ export const createRfq = async (req, res) => {
                 message: "Only the project engineer or admin can create RFQs",
             });
         }
-        const rfq = await prisma.rfq.create({
+        const rfq = await prisma_js_1.default.rfq.create({
             data: {
                 projectId: milestone.projectId,
                 milestoneId: milestone.id,
                 engineerId: req.user.role === "admin" ? milestone.engineerId : req.user.id,
                 title,
                 specs: parseJsonField(specs) || {},
-                quantity: new Prisma.Decimal(quantity),
+                quantity: new client_1.Prisma.Decimal(quantity),
                 unit,
                 deadline: new Date(deadline),
                 expiresAt: expiresAt ? new Date(expiresAt) : undefined,
@@ -93,7 +99,8 @@ export const createRfq = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getRfqs = async (req, res) => {
+exports.createRfq = createRfq;
+const getRfqs = async (req, res) => {
     try {
         const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
         const milestoneId = typeof req.query.milestoneId === "string"
@@ -103,7 +110,7 @@ export const getRfqs = async (req, res) => {
         if (status !== undefined && !isRfqStatus(status)) {
             return res.status(400).json({ message: "Invalid RFQ status" });
         }
-        const rfqs = await prisma.rfq.findMany({
+        const rfqs = await prisma_js_1.default.rfq.findMany({
             where: {
                 ...(projectId ? { projectId } : {}),
                 ...(milestoneId ? { milestoneId } : {}),
@@ -157,13 +164,14 @@ export const getRfqs = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getRfqById = async (req, res) => {
+exports.getRfqs = getRfqs;
+const getRfqById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "RFQ ID is required" });
         }
-        const rfq = await prisma.rfq.findUnique({
+        const rfq = await prisma_js_1.default.rfq.findUnique({
             where: { id },
             include: {
                 project: {
@@ -202,7 +210,8 @@ export const getRfqById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateRfq = async (req, res) => {
+exports.getRfqById = getRfqById;
+const updateRfq = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const { title, specs, quantity, unit, deadline, expiresAt, status } = req.body;
@@ -212,7 +221,7 @@ export const updateRfq = async (req, res) => {
         if (status !== undefined && !isRfqStatus(status)) {
             return res.status(400).json({ message: "Invalid RFQ status" });
         }
-        const existingRfq = await prisma.rfq.findUnique({
+        const existingRfq = await prisma_js_1.default.rfq.findUnique({
             where: { id },
             include: {
                 purchaseOrder: true,
@@ -231,12 +240,12 @@ export const updateRfq = async (req, res) => {
                 message: "RFQ with purchase order can only be closed",
             });
         }
-        const rfq = await prisma.rfq.update({
+        const rfq = await prisma_js_1.default.rfq.update({
             where: { id },
             data: {
                 title,
                 specs: specs !== undefined ? parseJsonField(specs) : undefined,
-                quantity: quantity !== undefined ? new Prisma.Decimal(quantity) : undefined,
+                quantity: quantity !== undefined ? new client_1.Prisma.Decimal(quantity) : undefined,
                 unit,
                 deadline: deadline ? new Date(deadline) : undefined,
                 expiresAt: expiresAt !== undefined
@@ -263,13 +272,14 @@ export const updateRfq = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteRfq = async (req, res) => {
+exports.updateRfq = updateRfq;
+const deleteRfq = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "RFQ ID is required" });
         }
-        const rfq = await prisma.rfq.findUnique({
+        const rfq = await prisma_js_1.default.rfq.findUnique({
             where: { id },
             include: {
                 quotes: true,
@@ -289,7 +299,7 @@ export const deleteRfq = async (req, res) => {
                 message: "RFQ with quotes or purchase order cannot be deleted",
             });
         }
-        await prisma.rfq.delete({
+        await prisma_js_1.default.rfq.delete({
             where: { id },
         });
         return res.json({ message: "RFQ deleted successfully" });
@@ -299,3 +309,4 @@ export const deleteRfq = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteRfq = deleteRfq;
