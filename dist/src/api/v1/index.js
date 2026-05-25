@@ -1,4 +1,5 @@
 import { Router } from "express";
+import swaggerRoutes from "./docs/swagger.route";
 import kycRoutes from "./routes/kyc.route";
 import userRoutes from "./routes/user.route";
 import sessionRoutes from "./routes/session.route";
@@ -26,6 +27,7 @@ import apiKeyRoutes from "./routes/api-key.route";
 import systemSettingRoutes from "./routes/system-setting.route";
 import emailTemplateRoutes from "./routes/email-template.route";
 const router = Router();
+router.use("/", swaggerRoutes);
 router.use("/kyc", kycRoutes);
 router.use("/users", userRoutes);
 router.use("/sessions", sessionRoutes);

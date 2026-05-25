@@ -77,6 +77,14 @@ CORS_ORIGINS
 
 `FRONTEND_URL`, `MOBILE_URL`, and `CORS_ORIGINS` are used for CORS. In development, local network origins such as `localhost`, `127.0.0.1`, `10.x.x.x`, `172.16.x.x` to `172.31.x.x`, and `192.168.x.x` are also allowed.
 
+Better Auth uses the v1 API base path:
+
+```text
+/api/v1/auth
+```
+
+`BETTER_AUTH_URL` should stay as the server origin, for example `http://localhost:3000`. Do not use the old `/api/auth` path.
+
 ### 3. Set up the database
 
 Generate the Prisma client:
@@ -147,10 +155,28 @@ Better Auth is mounted at:
 /api/v1/auth
 ```
 
+Example auth URL:
+
+```text
+http://localhost:3000/api/v1/auth/sign-in/email
+```
+
 KYC routes are mounted at:
 
 ```text
 /api/v1/kyc
+```
+
+Swagger documentation is available at:
+
+```text
+/api/v1/docs
+```
+
+The raw OpenAPI JSON is available at:
+
+```text
+/api/v1/openapi.json
 ```
 
 Model routes use this standard controller and route pattern:
@@ -447,6 +473,9 @@ src/
   api/
     v1/
       index.ts                   Versioned API v1 route registry
+      docs/
+        openapi.ts               OpenAPI route definitions
+        swagger.route.ts         Swagger UI and JSON routes
       controllers/
         account.controller.ts
         activity-log.controller.ts

@@ -10,6 +10,7 @@ const envTrustedOrigins = (process.env.CORS_ORIGINS || "")
     .map((origin) => origin.trim())
     .filter(Boolean);
 export const auth = betterAuth({
+    basePath: "/api/v1/auth",
     database: prismaAdapter(prisma, {
         provider: "postgresql",
     }),
