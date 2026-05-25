@@ -11,13 +11,14 @@ const canManageProjectMember = (project, userId, role) => {
 };
 export const createProjectMember = async (req, res) => {
     try {
-        const { projectId, userId, role = "engineer" } = req.body;
+        const { projectId, userId } = req.body;
+        const role = String(req.body.role || "engineer").trim().toLowerCase();
         if (!projectId || !userId) {
             return res
                 .status(400)
                 .json({ message: "projectId and userId are required" });
         }
-        const project = await prisma.project.findUnique({
+        let project = await prisma.project.findUnique({
             where: { id: String(projectId) },
         });
         if (!project) {
@@ -43,16 +44,50 @@ export const createProjectMember = async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-        if (user.role !== role) {
+        if (String(user.role).trim().toLowerCase() !== role) {
             return res.status(400).json({
                 message: `Selected user is not a ${role}`,
+                selectedUserId: user.id,
+                selectedUserEmail: user.email,
+                selectedUserRole: user.role,
+                requiredRole: role,
             });
         }
-        if (role === "engineer" &&
-            project.engineerId &&
-            project.engineerId !== user.id) {
+        if (role === "engineer" && project.engineerId) {
+            const acceptedEngineerAssignment = await prisma.projectMember.findFirst({
+                where: {
+                    projectId: project.id,
+                    userId: project.engineerId,
+                    role: "engineer",
+                    status: "accepted",
+                },
+            });
+            if (acceptedEngineerAssignment && project.engineerId !== user.id) {
+                return res.status(400).json({
+                    message: "Project already has an accepted engineer",
+                    currentEngineerId: project.engineerId,
+                    currentAssignmentId: acceptedEngineerAssignment.id,
+                });
+            }
+            if (!acceptedEngineerAssignment) {
+                project = await prisma.project.update({
+                    where: { id: project.id },
+                    data: { engineerId: null },
+                });
+            }
+        }
+        const existingAssignment = await prisma.projectMember.findUnique({
+            where: {
+                projectId_userId: {
+                    projectId: project.id,
+                    userId: user.id,
+                },
+            },
+        });
+        if (existingAssignment?.status === "accepted") {
             return res.status(400).json({
-                message: "Project already has an accepted engineer",
+                message: "This engineer has already accepted this project",
+                assignment: existingAssignment,
             });
         }
         const assignment = await prisma.projectMember.upsert({
