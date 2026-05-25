@@ -10,6 +10,7 @@ export const requiredAuth = async (req, res, next) => {
         }
         req.session = session;
         req.user = session.user;
+        req.role = session.user.role;
         next();
     }
     catch (error) {

@@ -8,10 +8,11 @@ import {
 } from "../controllers/kyc.controller.js";
 import { requiredAuth } from "../middleware/auth.middleware.js";
 import { isAdmin } from "../middleware/role.middleware.js";
+import { uploadImages } from "../middleware/upload.middleware.js";
 
 const router = Router();
 
-router.post("/documents", requiredAuth, uploadDocument);
+router.post("/documents", requiredAuth, uploadImages, uploadDocument);
 router.get("/status", requiredAuth, getKycStatus);
 
 router.get("/pending", requiredAuth, isAdmin, getPendingKyc);

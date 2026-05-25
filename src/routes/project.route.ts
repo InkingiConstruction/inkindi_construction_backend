@@ -1,20 +1,27 @@
 import { Router } from "express";
 import {
+  changeProjectImage,
   createProject,
+  deleteProjectImage,
   deleteProject,
   getProjectById,
   getProjects,
+  toggleProjectStatus,
   updateProject,
 } from "../controllers/project.controller";
 import { requiredAuth } from "../middleware/auth.middleware";
 import { requireRole } from "../middleware/role.middleware";
+import { uploadImages } from "../middleware/upload.middleware";
 
 const router = Router();
 
-router.post("/", requiredAuth, requireRole("client"), createProject);
+router.post("/", requiredAuth, requireRole("client"), uploadImages, createProject);
 router.get("/", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), getProjects);
 router.get("/:id", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), getProjectById);
-router.put("/:id", requiredAuth, requireRole("client", "engineer", "admin"), updateProject);
+router.patch("/:id/status", requiredAuth, requireRole("client", "engineer", "admin"), toggleProjectStatus);
+router.patch("/:id/images", requiredAuth, requireRole("client", "engineer", "admin"), uploadImages, changeProjectImage);
+router.delete("/:id/images", requiredAuth, requireRole("client", "engineer", "admin"), deleteProjectImage);
+router.put("/:id", requiredAuth, requireRole("client", "engineer", "admin"), uploadImages, updateProject);
 router.delete("/:id", requiredAuth, requireRole("client", "admin"), deleteProject);
 
 export default router;
