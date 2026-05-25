@@ -23,9 +23,7 @@ const parseJsonField = (value: unknown) => {
   }
 };
 
-const isInspectionDecision = (
-  value: unknown,
-): value is InspectionDecision =>
+const isInspectionDecision = (value: unknown): value is InspectionDecision =>
   typeof value === "string" &&
   Object.values(InspectionDecision).includes(value as InspectionDecision);
 
@@ -139,8 +137,10 @@ const buildInspectionUpdateData = (
 ) => {
   const data: Prisma.InspectionUpdateInput = {};
 
-  if (body.checklist !== undefined) data.checklist = parseJsonField(body.checklist);
-  if (uploadedPhotos.length > 0) data.photos = [...existingPhotos, ...uploadedPhotos];
+  if (body.checklist !== undefined)
+    data.checklist = parseJsonField(body.checklist);
+  if (uploadedPhotos.length > 0)
+    data.photos = [...existingPhotos, ...uploadedPhotos];
   if (body.photos !== undefined && uploadedPhotos.length === 0) {
     data.photos = parseJsonField(body.photos);
   }
@@ -151,7 +151,8 @@ const buildInspectionUpdateData = (
   if (body.signatureUrl !== undefined && !signatureUrl) {
     data.signatureUrl = body.signatureUrl ? String(body.signatureUrl) : null;
   }
-  if (body.notes !== undefined) data.notes = body.notes ? String(body.notes) : null;
+  if (body.notes !== undefined)
+    data.notes = body.notes ? String(body.notes) : null;
   if (body.decision !== undefined) {
     data.decision = body.decision as InspectionDecision;
     data.signedAt = new Date();
@@ -165,14 +166,8 @@ const buildInspectionUpdateData = (
 
 export const createInspection = async (req: Request, res: Response) => {
   try {
-    const {
-      milestoneId,
-      checklist,
-      rating,
-      notes,
-      decision,
-      attemptNumber,
-    } = req.body;
+    const { milestoneId, checklist, rating, notes, decision, attemptNumber } =
+      req.body;
 
     if (!milestoneId) {
       return res.status(400).json({ message: "milestoneId is required" });
@@ -200,7 +195,8 @@ export const createInspection = async (req: Request, res: Response) => {
 
     if (!canInspectMilestone(milestone, req.user.id, req.user.role)) {
       return res.status(403).json({
-        message: "Only an assigned supervisor or admin can inspect this milestone",
+        message:
+          "Only an assigned supervisor or admin can inspect this milestone",
       });
     }
 
@@ -386,7 +382,13 @@ export const getInspectionById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Inspection not found" });
     }
 
-    if (!canReadMilestoneInspection(inspection.milestone, req.user.id, req.user.role)) {
+    if (
+      !canReadMilestoneInspection(
+        inspection.milestone,
+        req.user.id,
+        req.user.role,
+      )
+    ) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
@@ -429,9 +431,16 @@ export const updateInspection = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Inspection not found" });
     }
 
-    if (!canInspectMilestone(existingInspection.milestone, req.user.id, req.user.role)) {
+    if (
+      !canInspectMilestone(
+        existingInspection.milestone,
+        req.user.id,
+        req.user.role,
+      )
+    ) {
       return res.status(403).json({
-        message: "Only an assigned supervisor or admin can update this inspection",
+        message:
+          "Only an assigned supervisor or admin can update this inspection",
       });
     }
 
@@ -531,9 +540,12 @@ export const deleteInspection = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Inspection not found" });
     }
 
-    if (!canInspectMilestone(inspection.milestone, req.user.id, req.user.role)) {
+    if (
+      !canInspectMilestone(inspection.milestone, req.user.id, req.user.role)
+    ) {
       return res.status(403).json({
-        message: "Only an assigned supervisor or admin can delete this inspection",
+        message:
+          "Only an assigned supervisor or admin can delete this inspection",
       });
     }
 

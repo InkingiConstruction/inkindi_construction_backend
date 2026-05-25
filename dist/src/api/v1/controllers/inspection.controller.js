@@ -107,7 +107,7 @@ const buildInspectionUpdateData = (body, uploadedPhotos, signatureUrl, existingP
 };
 export const createInspection = async (req, res) => {
     try {
-        const { milestoneId, checklist, rating, notes, decision, attemptNumber, } = req.body;
+        const { milestoneId, checklist, rating, notes, decision, attemptNumber } = req.body;
         if (!milestoneId) {
             return res.status(400).json({ message: "milestoneId is required" });
         }
