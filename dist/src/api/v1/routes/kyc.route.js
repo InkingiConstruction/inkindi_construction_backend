@@ -9,6 +9,8 @@ const router = (0, express_1.Router)();
 router.post("/documents", auth_middleware_js_1.requiredAuth, upload_middleware_js_1.uploadImages, kyc_controller_js_1.uploadDocument);
 router.get("/status", auth_middleware_js_1.requiredAuth, kyc_controller_js_1.getKycStatus);
 router.get("/pending", auth_middleware_js_1.requiredAuth, role_middleware_js_1.isAdmin, kyc_controller_js_1.getPendingKyc);
+router.get("/review/:userId", auth_middleware_js_1.requiredAuth, role_middleware_js_1.isAdmin, kyc_controller_js_1.getKycReviewByUserId);
 router.post("/:userId/approve", auth_middleware_js_1.requiredAuth, role_middleware_js_1.isAdmin, kyc_controller_js_1.approveKyc);
 router.post("/:userId/reject", auth_middleware_js_1.requiredAuth, role_middleware_js_1.isAdmin, kyc_controller_js_1.rejectKyc);
+router.post("/expiry/check", auth_middleware_js_1.requiredAuth, role_middleware_js_1.isAdmin, kyc_controller_js_1.checkKycExpiry);
 exports.default = router;
