@@ -17,8 +17,12 @@ const canManageBoq = (milestone, userId, role) => {
 const calculateTotalPrice = (quantity, unitPrice) => Number(quantity) * Number(unitPrice);
 const buildBoqUpdateData = (body, current) => {
     const data = {};
-    const quantity = body.quantity !== undefined ? Number(body.quantity) : Number(current.quantity);
-    const unitPrice = body.unitPrice !== undefined ? Number(body.unitPrice) : Number(current.unitPrice);
+    const quantity = body.quantity !== undefined
+        ? Number(body.quantity)
+        : Number(current.quantity);
+    const unitPrice = body.unitPrice !== undefined
+        ? Number(body.unitPrice)
+        : Number(current.unitPrice);
     if (body.category !== undefined)
         data.category = String(body.category);
     if (body.name !== undefined)
@@ -45,7 +49,12 @@ const buildBoqUpdateData = (body, current) => {
 export const createBoqItem = async (req, res) => {
     try {
         const { milestoneId, category, name, quantity, unit, unitPrice, totalPrice, actualCost, notes, } = req.body;
-        if (!milestoneId || !category || !name || quantity === undefined || !unit || unitPrice === undefined) {
+        if (!milestoneId ||
+            !category ||
+            !name ||
+            quantity === undefined ||
+            !unit ||
+            unitPrice === undefined) {
             return res.status(400).json({
                 message: "milestoneId, category, name, quantity, unit and unitPrice are required",
             });
