@@ -75,6 +75,14 @@ app.use(
   }),
 );
 
+app.use("/api/auth", (req, _res, next) => {
+  if (!isProduction && !req.headers.origin) {
+    req.headers.origin = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+  }
+
+  next();
+});
+
 app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());

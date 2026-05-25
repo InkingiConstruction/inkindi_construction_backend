@@ -10,6 +10,11 @@ import {
   signInOTPTemplate,
 } from "../utils/email-tempelates.js";
 
+const envTrustedOrigins = (process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -52,7 +57,16 @@ export const auth = betterAuth({
       adminRoles: ["admin"],
     }),
   ],
-  trustedOrigins: [process.env.FRONTEND_URL || "http://localhost:5173"],
+  trustedOrigins: [
+    process.env.FRONTEND_URL as string,
+    process.env.MOBILE_URL as string,
+    process.env.BETTER_AUTH_URL as string,
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:8081",
+    "http://192.168.1.171:8081",
+    ...envTrustedOrigins,
+  ],
 });
 
 export type AppRole =

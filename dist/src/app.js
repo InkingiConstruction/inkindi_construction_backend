@@ -31,13 +31,46 @@ import systemSettingRoutes from "./routes/system-setting.route";
 import emailTemplateRoutes from "./routes/email-template.route";
 const app = express();
 const port = process.env.PORT;
-const allowedOrigins = [process.env.FRONTEND_URL || "http://localhost:5173"];
+const isProduction = process.env.NODE_ENV === "production";
+const envAllowedOrigins = (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+const allowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:8081",
+    "http://192.168.1.171:8081",
+    process.env.FRONTEND_URL,
+    process.env.MOBILE_URL,
+    ...envAllowedOrigins,
+].filter(Boolean);
+const devOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/;
+function isAllowedOrigin(origin) {
+    return (allowedOrigins.includes(origin) ||
+        (!isProduction && devOriginPattern.test(origin)));
+}
 app.use(cors({
-    origin: allowedOrigins,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: (origin, callback) => {
+        if (!origin)
+            return callback(null, true);
+        if (isAllowedOrigin(origin)) {
+            callback(null, true);
+        }
+        else {
+            console.log(`Blocked origin: ${origin}`);
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 }));
+app.use("/api/auth", (req, _res, next) => {
+    if (!isProduction && !req.headers.origin) {
+        req.headers.origin = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+    }
+    next();
+});
 app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use(express.json());
 app.get("/", (_req, res) => {
