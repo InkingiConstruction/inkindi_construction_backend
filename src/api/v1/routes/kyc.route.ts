@@ -3,8 +3,10 @@ import {
   uploadDocument,
   getKycStatus,
   getPendingKyc,
+  getKycReviewByUserId,
   approveKyc,
   rejectKyc,
+  checkKycExpiry,
 } from "../controllers/kyc.controller.js";
 import { requiredAuth } from "../middleware/auth.middleware.js";
 import { isAdmin } from "../middleware/role.middleware.js";
@@ -16,7 +18,9 @@ router.post("/documents", requiredAuth, uploadImages, uploadDocument);
 router.get("/status", requiredAuth, getKycStatus);
 
 router.get("/pending", requiredAuth, isAdmin, getPendingKyc);
+router.get("/review/:userId", requiredAuth, isAdmin, getKycReviewByUserId);
 router.post("/:userId/approve", requiredAuth, isAdmin, approveKyc);
 router.post("/:userId/reject", requiredAuth, isAdmin, rejectKyc);
+router.post("/expiry/check", requiredAuth, isAdmin, checkKycExpiry);
 
 export default router;
