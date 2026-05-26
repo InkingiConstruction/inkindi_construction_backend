@@ -1,4 +1,4 @@
-import { auth } from "../lib/auth";
+import { auth } from "../config/auth";
 
 type BetterAuthSession = Awaited<ReturnType<typeof auth.api.getSession>>;
 

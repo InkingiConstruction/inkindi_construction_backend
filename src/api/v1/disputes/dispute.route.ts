@@ -1,0 +1,20 @@
+import { Router } from "express";
+import {
+  createDispute,
+  deleteDispute,
+  getDisputeById,
+  getDisputes,
+  updateDispute,
+} from "./dispute.controller";
+import { requiredAuth } from "../middleware/auth.middleware";
+import { requireRole } from "../middleware/role.middleware";
+
+const router = Router();
+
+router.post("/", requiredAuth, requireRole("client", "engineer", "supplier"), createDispute);
+router.get("/", requiredAuth, requireRole("client", "engineer", "supplier", "admin"), getDisputes);
+router.get("/:id", requiredAuth, requireRole("client", "engineer", "supplier", "admin"), getDisputeById);
+router.put("/:id", requiredAuth, requireRole("admin"), updateDispute);
+router.delete("/:id", requiredAuth, requireRole("admin"), deleteDispute);
+
+export default router;

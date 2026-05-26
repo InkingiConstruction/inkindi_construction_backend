@@ -1,0 +1,21 @@
+import { Router } from "express";
+import {
+  createPurchaseOrder,
+  deletePurchaseOrder,
+  getPurchaseOrderById,
+  getPurchaseOrders,
+  updatePurchaseOrder,
+} from "./purchase-order.controller";
+import { requiredAuth } from "../middleware/auth.middleware";
+import { requireRole } from "../middleware/role.middleware";
+import { uploadImages } from "../middleware/upload.middleware";
+
+const router = Router();
+
+router.post("/", requiredAuth, requireRole("engineer", "admin"), uploadImages, createPurchaseOrder);
+router.get("/", requiredAuth, requireRole("engineer", "supplier", "admin"), getPurchaseOrders);
+router.get("/:id", requiredAuth, requireRole("engineer", "supplier", "admin"), getPurchaseOrderById);
+router.put("/:id", requiredAuth, requireRole("supplier", "engineer", "admin"), uploadImages, updatePurchaseOrder);
+router.delete("/:id", requiredAuth, requireRole("admin"), deletePurchaseOrder);
+
+export default router;
