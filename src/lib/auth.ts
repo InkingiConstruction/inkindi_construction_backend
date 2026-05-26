@@ -69,11 +69,12 @@ export const auth = betterAuth({
     process.env.BETTER_AUTH_URL as string,
     "http://localhost:3000",
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "http://localhost:8081",
     "http://192.168.1.171:8081",
     "https://inkindi-construction-backend.onrender.com",
     ...envTrustedOrigins,
-  ],
+  ].filter(Boolean),
 });
 
 export type AppRole =
