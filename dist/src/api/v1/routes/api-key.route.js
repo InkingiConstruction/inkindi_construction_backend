@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { createApiKey, deleteApiKey, getApiKeyById, getApiKeys, updateApiKey, } from "../controllers/api-key.controller";
+import { requiredAuth } from "../middleware/auth.middleware";
+import { requireRole } from "../middleware/role.middleware";
+const router = Router();
+router.post("/", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), createApiKey);
+router.get("/", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), getApiKeys);
+router.get("/:id", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), getApiKeyById);
+router.put("/:id", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), updateApiKey);
+router.delete("/:id", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), deleteApiKey);
+export default router;

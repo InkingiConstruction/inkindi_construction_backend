@@ -77,6 +77,14 @@ CORS_ORIGINS
 
 `FRONTEND_URL`, `MOBILE_URL`, and `CORS_ORIGINS` are used for CORS. In development, local network origins such as `localhost`, `127.0.0.1`, `10.x.x.x`, `172.16.x.x` to `172.31.x.x`, and `192.168.x.x` are also allowed.
 
+Better Auth uses the v1 API base path:
+
+```text
+/api/v1/auth
+```
+
+`BETTER_AUTH_URL` should stay as the server origin, for example `http://localhost:3000`. Do not use the old `/api/auth` path.
+
 ### 3. Set up the database
 
 Generate the Prisma client:
@@ -144,13 +152,31 @@ http://0.0.0.0:PORT
 Better Auth is mounted at:
 
 ```text
-/api/auth
+/api/v1/auth
+```
+
+Example auth URL:
+
+```text
+http://localhost:3000/api/v1/auth/sign-in/email
 ```
 
 KYC routes are mounted at:
 
 ```text
-/api/kyc
+/api/v1/kyc
+```
+
+Swagger documentation is available at:
+
+```text
+/api/v1/docs
+```
+
+The raw OpenAPI JSON is available at:
+
+```text
+/api/v1/openapi.json
 ```
 
 Model routes use this standard controller and route pattern:
@@ -167,31 +193,31 @@ Model routes use this standard controller and route pattern:
 
 | Base route              | Controller                  | Route file                       |
 | ----------------------- | --------------------------- | -------------------------------- |
-| `/api/users`            | `user.controller.ts`        | `user.route.ts`                  |
-| `/api/sessions`         | `session.controller.ts`     | `session.route.ts`               |
-| `/api/accounts`         | `account.controller.ts`     | `account.route.ts`               |
-| `/api/verifications`    | `verification.controller.ts` | `verification.route.ts`          |
-| `/api/projects`         | `project.controller.ts`     | `project.route.ts`               |
-| `/api/project-members`  | `project-member.controller.ts` | `project-member.route.ts`     |
-| `/api/escrow-accounts`  | `escrow-account.controller.ts` | `escrow-account.route.ts`     |
-| `/api/transactions`     | `transaction.controller.ts` | `transaction.route.ts`           |
-| `/api/milestones`       | `milestone.controller.ts`   | `milestone.route.ts`             |
-| `/api/boq-items`        | `boq-item.controller.ts`    | `boq-item.route.ts`              |
-| `/api/rfqs`             | `rfq.controller.ts`         | `rfq.route.ts`                   |
-| `/api/quotes`           | `quote.controller.ts`       | `quote.route.ts`                 |
-| `/api/purchase-orders`  | `purchase-order.controller.ts` | `purchase-order.route.ts`     |
-| `/api/deliveries`       | `delivery.controller.ts`    | `delivery.route.ts`              |
-| `/api/progress-photos`  | `progress-photo.controller.ts` | `progress-photo.route.ts`     |
-| `/api/inspections`      | `inspection.controller.ts`  | `inspection.route.ts`            |
-| `/api/disputes`         | `dispute.controller.ts`     | `dispute.route.ts`               |
-| `/api/dispute-evidence` | `dispute-evidence.controller.ts` | `dispute-evidence.route.ts` |
-| `/api/messages`         | `message.controller.ts`     | `message.route.ts`               |
-| `/api/notifications`    | `notification.controller.ts` | `notification.route.ts`          |
-| `/api/audit-logs`       | `audit-log.controller.ts`   | `audit-log.route.ts`             |
-| `/api/activity-logs`    | `activity-log.controller.ts` | `activity-log.route.ts`          |
-| `/api/api-keys`         | `api-key.controller.ts`     | `api-key.route.ts`               |
-| `/api/system-settings`  | `system-setting.controller.ts` | `system-setting.route.ts`     |
-| `/api/email-templates`  | `email-template.controller.ts` | `email-template.route.ts`     |
+| `/api/v1/users`            | `user.controller.ts`        | `user.route.ts`                  |
+| `/api/v1/sessions`         | `session.controller.ts`     | `session.route.ts`               |
+| `/api/v1/accounts`         | `account.controller.ts`     | `account.route.ts`               |
+| `/api/v1/verifications`    | `verification.controller.ts` | `verification.route.ts`          |
+| `/api/v1/projects`         | `project.controller.ts`     | `project.route.ts`               |
+| `/api/v1/project-members`  | `project-member.controller.ts` | `project-member.route.ts`     |
+| `/api/v1/escrow-accounts`  | `escrow-account.controller.ts` | `escrow-account.route.ts`     |
+| `/api/v1/transactions`     | `transaction.controller.ts` | `transaction.route.ts`           |
+| `/api/v1/milestones`       | `milestone.controller.ts`   | `milestone.route.ts`             |
+| `/api/v1/boq-items`        | `boq-item.controller.ts`    | `boq-item.route.ts`              |
+| `/api/v1/rfqs`             | `rfq.controller.ts`         | `rfq.route.ts`                   |
+| `/api/v1/quotes`           | `quote.controller.ts`       | `quote.route.ts`                 |
+| `/api/v1/purchase-orders`  | `purchase-order.controller.ts` | `purchase-order.route.ts`     |
+| `/api/v1/deliveries`       | `delivery.controller.ts`    | `delivery.route.ts`              |
+| `/api/v1/progress-photos`  | `progress-photo.controller.ts` | `progress-photo.route.ts`     |
+| `/api/v1/inspections`      | `inspection.controller.ts`  | `inspection.route.ts`            |
+| `/api/v1/disputes`         | `dispute.controller.ts`     | `dispute.route.ts`               |
+| `/api/v1/dispute-evidence` | `dispute-evidence.controller.ts` | `dispute-evidence.route.ts` |
+| `/api/v1/messages`         | `message.controller.ts`     | `message.route.ts`               |
+| `/api/v1/notifications`    | `notification.controller.ts` | `notification.route.ts`          |
+| `/api/v1/audit-logs`       | `audit-log.controller.ts`   | `audit-log.route.ts`             |
+| `/api/v1/activity-logs`    | `activity-log.controller.ts` | `activity-log.route.ts`          |
+| `/api/v1/api-keys`         | `api-key.controller.ts`     | `api-key.route.ts`               |
+| `/api/v1/system-settings`  | `system-setting.controller.ts` | `system-setting.route.ts`     |
+| `/api/v1/email-templates`  | `email-template.controller.ts` | `email-template.route.ts`     |
 
 ### Role Access
 
@@ -199,161 +225,161 @@ All model routes require authentication through `requiredAuth`. Route-level role
 
 | Base route              | Create | Read | Update | Delete |
 | ----------------------- | ------ | ---- | ------ | ------ |
-| `/api/users`            | admin | admin | admin | admin |
-| `/api/sessions`         | admin | admin | admin | admin |
-| `/api/accounts`         | admin | admin | admin | admin |
-| `/api/verifications`    | admin | admin | admin | admin |
-| `/api/projects`         | client | client, engineer, supervisor, supplier, admin | client, engineer, admin | client, admin |
-| `/api/project-members`  | client, engineer, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, admin |
-| `/api/escrow-accounts`  | admin | client, engineer, admin | admin | admin |
-| `/api/transactions`     | client, admin | client, engineer, admin | admin | admin |
-| `/api/milestones`       | engineer, admin | client, engineer, supervisor, admin | engineer, supervisor, admin | engineer, admin |
-| `/api/boq-items`        | engineer, admin | client, engineer, supervisor, supplier, admin | engineer, admin | engineer, admin |
-| `/api/rfqs`             | engineer, admin | engineer, supplier, admin | engineer, admin | engineer, admin |
-| `/api/quotes`           | supplier | engineer, supplier, admin | supplier, engineer, admin | supplier, admin |
-| `/api/purchase-orders`  | engineer, admin | engineer, supplier, admin | supplier, engineer, admin | admin |
-| `/api/deliveries`       | supplier | client, engineer, supplier, admin | supplier, engineer, client, admin | supplier, admin |
-| `/api/progress-photos`  | engineer, supervisor, admin | client, engineer, supervisor, admin | engineer, supervisor, admin | engineer, supervisor, admin |
-| `/api/inspections`      | supervisor, admin | client, engineer, supervisor, admin | supervisor, admin | supervisor, admin |
-| `/api/disputes`         | client, engineer, supplier | client, engineer, supplier, admin | admin | admin |
-| `/api/dispute-evidence` | client, engineer, supplier | client, engineer, supplier, admin | client, engineer, supplier, admin | client, engineer, supplier, admin |
-| `/api/messages`         | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin |
-| `/api/notifications`    | admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin |
-| `/api/audit-logs`       | admin | admin | admin | admin |
-| `/api/activity-logs`    | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | admin | admin |
-| `/api/api-keys`         | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin |
-| `/api/system-settings`  | admin | admin | admin | admin |
-| `/api/email-templates`  | admin | admin | admin | admin |
+| `/api/v1/users`            | admin | admin | admin | admin |
+| `/api/v1/sessions`         | admin | admin | admin | admin |
+| `/api/v1/accounts`         | admin | admin | admin | admin |
+| `/api/v1/verifications`    | admin | admin | admin | admin |
+| `/api/v1/projects`         | client | client, engineer, supervisor, supplier, admin | client, engineer, admin | client, admin |
+| `/api/v1/project-members`  | client, engineer, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, admin |
+| `/api/v1/escrow-accounts`  | admin | client, engineer, admin | admin | admin |
+| `/api/v1/transactions`     | client, admin | client, engineer, admin | admin | admin |
+| `/api/v1/milestones`       | engineer, admin | client, engineer, supervisor, admin | engineer, supervisor, admin | engineer, admin |
+| `/api/v1/boq-items`        | engineer, admin | client, engineer, supervisor, supplier, admin | engineer, admin | engineer, admin |
+| `/api/v1/rfqs`             | engineer, admin | engineer, supplier, admin | engineer, admin | engineer, admin |
+| `/api/v1/quotes`           | supplier | engineer, supplier, admin | supplier, engineer, admin | supplier, admin |
+| `/api/v1/purchase-orders`  | engineer, admin | engineer, supplier, admin | supplier, engineer, admin | admin |
+| `/api/v1/deliveries`       | supplier | client, engineer, supplier, admin | supplier, engineer, client, admin | supplier, admin |
+| `/api/v1/progress-photos`  | engineer, supervisor, admin | client, engineer, supervisor, admin | engineer, supervisor, admin | engineer, supervisor, admin |
+| `/api/v1/inspections`      | supervisor, admin | client, engineer, supervisor, admin | supervisor, admin | supervisor, admin |
+| `/api/v1/disputes`         | client, engineer, supplier | client, engineer, supplier, admin | admin | admin |
+| `/api/v1/dispute-evidence` | client, engineer, supplier | client, engineer, supplier, admin | client, engineer, supplier, admin | client, engineer, supplier, admin |
+| `/api/v1/messages`         | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin |
+| `/api/v1/notifications`    | admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin |
+| `/api/v1/audit-logs`       | admin | admin | admin | admin |
+| `/api/v1/activity-logs`    | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | admin | admin |
+| `/api/v1/api-keys`         | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin | client, engineer, supervisor, supplier, admin |
+| `/api/v1/system-settings`  | admin | admin | admin | admin |
+| `/api/v1/email-templates`  | admin | admin | admin | admin |
 
 ### Full Model API Methods
 
 | Method | Endpoint | Roles | Controller action |
 | ------ | -------- | ----- | ----------------- |
-| `POST` | `/api/users` | admin | `createUser` |
-| `GET` | `/api/users` | admin | `getUsers` |
-| `GET` | `/api/users/:id` | admin | `getUserById` |
-| `PUT` | `/api/users/:id` | admin | `updateUser` |
-| `DELETE` | `/api/users/:id` | admin | `deleteUser` |
-| `POST` | `/api/sessions` | admin | `createSession` |
-| `GET` | `/api/sessions` | admin | `getSessions` |
-| `GET` | `/api/sessions/:id` | admin | `getSessionById` |
-| `PUT` | `/api/sessions/:id` | admin | `updateSession` |
-| `DELETE` | `/api/sessions/:id` | admin | `deleteSession` |
-| `POST` | `/api/accounts` | admin | `createAccount` |
-| `GET` | `/api/accounts` | admin | `getAccounts` |
-| `GET` | `/api/accounts/:id` | admin | `getAccountById` |
-| `PUT` | `/api/accounts/:id` | admin | `updateAccount` |
-| `DELETE` | `/api/accounts/:id` | admin | `deleteAccount` |
-| `POST` | `/api/verifications` | admin | `createVerification` |
-| `GET` | `/api/verifications` | admin | `getVerifications` |
-| `GET` | `/api/verifications/:id` | admin | `getVerificationById` |
-| `PUT` | `/api/verifications/:id` | admin | `updateVerification` |
-| `DELETE` | `/api/verifications/:id` | admin | `deleteVerification` |
-| `POST` | `/api/projects` | client | `createProject` |
-| `GET` | `/api/projects` | client, engineer, supervisor, supplier, admin | `getProjects` |
-| `GET` | `/api/projects/:id` | client, engineer, supervisor, supplier, admin | `getProjectById` |
-| `PUT` | `/api/projects/:id` | client, engineer, admin | `updateProject` |
-| `DELETE` | `/api/projects/:id` | client, admin | `deleteProject` |
-| `POST` | `/api/project-members` | client, engineer, admin | `createProjectMember` |
-| `GET` | `/api/project-members` | client, engineer, supervisor, supplier, admin | `getProjectMembers` |
-| `GET` | `/api/project-members/:id` | client, engineer, supervisor, supplier, admin | `getProjectMemberById` |
-| `PUT` | `/api/project-members/:id` | client, engineer, supervisor, supplier, admin | `updateProjectMember` |
-| `DELETE` | `/api/project-members/:id` | client, engineer, admin | `deleteProjectMember` |
-| `POST` | `/api/escrow-accounts` | admin | `createEscrowAccount` |
-| `GET` | `/api/escrow-accounts` | client, engineer, admin | `getEscrowAccounts` |
-| `GET` | `/api/escrow-accounts/:id` | client, engineer, admin | `getEscrowAccountById` |
-| `PUT` | `/api/escrow-accounts/:id` | admin | `updateEscrowAccount` |
-| `DELETE` | `/api/escrow-accounts/:id` | admin | `deleteEscrowAccount` |
-| `POST` | `/api/transactions` | client, admin | `createTransaction` |
-| `GET` | `/api/transactions` | client, engineer, admin | `getTransactions` |
-| `GET` | `/api/transactions/:id` | client, engineer, admin | `getTransactionById` |
-| `PUT` | `/api/transactions/:id` | admin | `updateTransaction` |
-| `DELETE` | `/api/transactions/:id` | admin | `deleteTransaction` |
-| `POST` | `/api/milestones` | engineer, admin | `createMilestone` |
-| `GET` | `/api/milestones` | client, engineer, supervisor, admin | `getMilestones` |
-| `GET` | `/api/milestones/:id` | client, engineer, supervisor, admin | `getMilestoneById` |
-| `PUT` | `/api/milestones/:id` | engineer, supervisor, admin | `updateMilestone` |
-| `DELETE` | `/api/milestones/:id` | engineer, admin | `deleteMilestone` |
-| `POST` | `/api/boq-items` | engineer, admin | `createBoqItem` |
-| `GET` | `/api/boq-items` | client, engineer, supervisor, supplier, admin | `getBoqItems` |
-| `GET` | `/api/boq-items/:id` | client, engineer, supervisor, supplier, admin | `getBoqItemById` |
-| `PUT` | `/api/boq-items/:id` | engineer, admin | `updateBoqItem` |
-| `DELETE` | `/api/boq-items/:id` | engineer, admin | `deleteBoqItem` |
-| `POST` | `/api/rfqs` | engineer, admin | `createRfq` |
-| `GET` | `/api/rfqs` | engineer, supplier, admin | `getRfqs` |
-| `GET` | `/api/rfqs/:id` | engineer, supplier, admin | `getRfqById` |
-| `PUT` | `/api/rfqs/:id` | engineer, admin | `updateRfq` |
-| `DELETE` | `/api/rfqs/:id` | engineer, admin | `deleteRfq` |
-| `POST` | `/api/quotes` | supplier | `createQuote` |
-| `GET` | `/api/quotes` | engineer, supplier, admin | `getQuotes` |
-| `GET` | `/api/quotes/:id` | engineer, supplier, admin | `getQuoteById` |
-| `PUT` | `/api/quotes/:id` | supplier, engineer, admin | `updateQuote` |
-| `DELETE` | `/api/quotes/:id` | supplier, admin | `deleteQuote` |
-| `POST` | `/api/purchase-orders` | engineer, admin | `createPurchaseOrder` |
-| `GET` | `/api/purchase-orders` | engineer, supplier, admin | `getPurchaseOrders` |
-| `GET` | `/api/purchase-orders/:id` | engineer, supplier, admin | `getPurchaseOrderById` |
-| `PUT` | `/api/purchase-orders/:id` | supplier, engineer, admin | `updatePurchaseOrder` |
-| `DELETE` | `/api/purchase-orders/:id` | admin | `deletePurchaseOrder` |
-| `POST` | `/api/deliveries` | supplier | `createDelivery` |
-| `GET` | `/api/deliveries` | client, engineer, supplier, admin | `getDeliverys` |
-| `GET` | `/api/deliveries/:id` | client, engineer, supplier, admin | `getDeliveryById` |
-| `PUT` | `/api/deliveries/:id` | supplier, engineer, client, admin | `updateDelivery` |
-| `DELETE` | `/api/deliveries/:id` | supplier, admin | `deleteDelivery` |
-| `POST` | `/api/progress-photos` | engineer, supervisor, admin | `createProgressPhoto` |
-| `GET` | `/api/progress-photos` | client, engineer, supervisor, admin | `getProgressPhotos` |
-| `GET` | `/api/progress-photos/:id` | client, engineer, supervisor, admin | `getProgressPhotoById` |
-| `PUT` | `/api/progress-photos/:id` | engineer, supervisor, admin | `updateProgressPhoto` |
-| `DELETE` | `/api/progress-photos/:id` | engineer, supervisor, admin | `deleteProgressPhoto` |
-| `POST` | `/api/inspections` | supervisor, admin | `createInspection` |
-| `GET` | `/api/inspections` | client, engineer, supervisor, admin | `getInspections` |
-| `GET` | `/api/inspections/:id` | client, engineer, supervisor, admin | `getInspectionById` |
-| `PUT` | `/api/inspections/:id` | supervisor, admin | `updateInspection` |
-| `DELETE` | `/api/inspections/:id` | supervisor, admin | `deleteInspection` |
-| `POST` | `/api/disputes` | client, engineer, supplier | `createDispute` |
-| `GET` | `/api/disputes` | client, engineer, supplier, admin | `getDisputes` |
-| `GET` | `/api/disputes/:id` | client, engineer, supplier, admin | `getDisputeById` |
-| `PUT` | `/api/disputes/:id` | admin | `updateDispute` |
-| `DELETE` | `/api/disputes/:id` | admin | `deleteDispute` |
-| `POST` | `/api/dispute-evidence` | client, engineer, supplier | `createDisputeEvidence` |
-| `GET` | `/api/dispute-evidence` | client, engineer, supplier, admin | `getDisputeEvidences` |
-| `GET` | `/api/dispute-evidence/:id` | client, engineer, supplier, admin | `getDisputeEvidenceById` |
-| `PUT` | `/api/dispute-evidence/:id` | client, engineer, supplier, admin | `updateDisputeEvidence` |
-| `DELETE` | `/api/dispute-evidence/:id` | client, engineer, supplier, admin | `deleteDisputeEvidence` |
-| `POST` | `/api/messages` | client, engineer, supervisor, supplier, admin | `createMessage` |
-| `GET` | `/api/messages` | client, engineer, supervisor, supplier, admin | `getMessages` |
-| `GET` | `/api/messages/:id` | client, engineer, supervisor, supplier, admin | `getMessageById` |
-| `PUT` | `/api/messages/:id` | client, engineer, supervisor, supplier, admin | `updateMessage` |
-| `DELETE` | `/api/messages/:id` | client, engineer, supervisor, supplier, admin | `deleteMessage` |
-| `POST` | `/api/notifications` | admin | `createNotification` |
-| `GET` | `/api/notifications` | client, engineer, supervisor, supplier, admin | `getNotifications` |
-| `GET` | `/api/notifications/:id` | client, engineer, supervisor, supplier, admin | `getNotificationById` |
-| `PUT` | `/api/notifications/:id` | client, engineer, supervisor, supplier, admin | `updateNotification` |
-| `DELETE` | `/api/notifications/:id` | client, engineer, supervisor, supplier, admin | `deleteNotification` |
-| `POST` | `/api/audit-logs` | admin | `createAuditLog` |
-| `GET` | `/api/audit-logs` | admin | `getAuditLogs` |
-| `GET` | `/api/audit-logs/:id` | admin | `getAuditLogById` |
-| `PUT` | `/api/audit-logs/:id` | admin | `updateAuditLog` |
-| `DELETE` | `/api/audit-logs/:id` | admin | `deleteAuditLog` |
-| `POST` | `/api/activity-logs` | client, engineer, supervisor, supplier, admin | `createActivityLog` |
-| `GET` | `/api/activity-logs` | client, engineer, supervisor, supplier, admin | `getActivityLogs` |
-| `GET` | `/api/activity-logs/:id` | client, engineer, supervisor, supplier, admin | `getActivityLogById` |
-| `PUT` | `/api/activity-logs/:id` | admin | `updateActivityLog` |
-| `DELETE` | `/api/activity-logs/:id` | admin | `deleteActivityLog` |
-| `POST` | `/api/api-keys` | client, engineer, supervisor, supplier, admin | `createApiKey` |
-| `GET` | `/api/api-keys` | client, engineer, supervisor, supplier, admin | `getApiKeys` |
-| `GET` | `/api/api-keys/:id` | client, engineer, supervisor, supplier, admin | `getApiKeyById` |
-| `PUT` | `/api/api-keys/:id` | client, engineer, supervisor, supplier, admin | `updateApiKey` |
-| `DELETE` | `/api/api-keys/:id` | client, engineer, supervisor, supplier, admin | `deleteApiKey` |
-| `POST` | `/api/system-settings` | admin | `createSystemSetting` |
-| `GET` | `/api/system-settings` | admin | `getSystemSettings` |
-| `GET` | `/api/system-settings/:id` | admin | `getSystemSettingById` |
-| `PUT` | `/api/system-settings/:id` | admin | `updateSystemSetting` |
-| `DELETE` | `/api/system-settings/:id` | admin | `deleteSystemSetting` |
-| `POST` | `/api/email-templates` | admin | `createEmailTemplate` |
-| `GET` | `/api/email-templates` | admin | `getEmailTemplates` |
-| `GET` | `/api/email-templates/:id` | admin | `getEmailTemplateById` |
-| `PUT` | `/api/email-templates/:id` | admin | `updateEmailTemplate` |
-| `DELETE` | `/api/email-templates/:id` | admin | `deleteEmailTemplate` |
+| `POST` | `/api/v1/users` | admin | `createUser` |
+| `GET` | `/api/v1/users` | admin | `getUsers` |
+| `GET` | `/api/v1/users/:id` | admin | `getUserById` |
+| `PUT` | `/api/v1/users/:id` | admin | `updateUser` |
+| `DELETE` | `/api/v1/users/:id` | admin | `deleteUser` |
+| `POST` | `/api/v1/sessions` | admin | `createSession` |
+| `GET` | `/api/v1/sessions` | admin | `getSessions` |
+| `GET` | `/api/v1/sessions/:id` | admin | `getSessionById` |
+| `PUT` | `/api/v1/sessions/:id` | admin | `updateSession` |
+| `DELETE` | `/api/v1/sessions/:id` | admin | `deleteSession` |
+| `POST` | `/api/v1/accounts` | admin | `createAccount` |
+| `GET` | `/api/v1/accounts` | admin | `getAccounts` |
+| `GET` | `/api/v1/accounts/:id` | admin | `getAccountById` |
+| `PUT` | `/api/v1/accounts/:id` | admin | `updateAccount` |
+| `DELETE` | `/api/v1/accounts/:id` | admin | `deleteAccount` |
+| `POST` | `/api/v1/verifications` | admin | `createVerification` |
+| `GET` | `/api/v1/verifications` | admin | `getVerifications` |
+| `GET` | `/api/v1/verifications/:id` | admin | `getVerificationById` |
+| `PUT` | `/api/v1/verifications/:id` | admin | `updateVerification` |
+| `DELETE` | `/api/v1/verifications/:id` | admin | `deleteVerification` |
+| `POST` | `/api/v1/projects` | client | `createProject` |
+| `GET` | `/api/v1/projects` | client, engineer, supervisor, supplier, admin | `getProjects` |
+| `GET` | `/api/v1/projects/:id` | client, engineer, supervisor, supplier, admin | `getProjectById` |
+| `PUT` | `/api/v1/projects/:id` | client, engineer, admin | `updateProject` |
+| `DELETE` | `/api/v1/projects/:id` | client, admin | `deleteProject` |
+| `POST` | `/api/v1/project-members` | client, engineer, admin | `createProjectMember` |
+| `GET` | `/api/v1/project-members` | client, engineer, supervisor, supplier, admin | `getProjectMembers` |
+| `GET` | `/api/v1/project-members/:id` | client, engineer, supervisor, supplier, admin | `getProjectMemberById` |
+| `PUT` | `/api/v1/project-members/:id` | client, engineer, supervisor, supplier, admin | `updateProjectMember` |
+| `DELETE` | `/api/v1/project-members/:id` | client, engineer, admin | `deleteProjectMember` |
+| `POST` | `/api/v1/escrow-accounts` | admin | `createEscrowAccount` |
+| `GET` | `/api/v1/escrow-accounts` | client, engineer, admin | `getEscrowAccounts` |
+| `GET` | `/api/v1/escrow-accounts/:id` | client, engineer, admin | `getEscrowAccountById` |
+| `PUT` | `/api/v1/escrow-accounts/:id` | admin | `updateEscrowAccount` |
+| `DELETE` | `/api/v1/escrow-accounts/:id` | admin | `deleteEscrowAccount` |
+| `POST` | `/api/v1/transactions` | client, admin | `createTransaction` |
+| `GET` | `/api/v1/transactions` | client, engineer, admin | `getTransactions` |
+| `GET` | `/api/v1/transactions/:id` | client, engineer, admin | `getTransactionById` |
+| `PUT` | `/api/v1/transactions/:id` | admin | `updateTransaction` |
+| `DELETE` | `/api/v1/transactions/:id` | admin | `deleteTransaction` |
+| `POST` | `/api/v1/milestones` | engineer, admin | `createMilestone` |
+| `GET` | `/api/v1/milestones` | client, engineer, supervisor, admin | `getMilestones` |
+| `GET` | `/api/v1/milestones/:id` | client, engineer, supervisor, admin | `getMilestoneById` |
+| `PUT` | `/api/v1/milestones/:id` | engineer, supervisor, admin | `updateMilestone` |
+| `DELETE` | `/api/v1/milestones/:id` | engineer, admin | `deleteMilestone` |
+| `POST` | `/api/v1/boq-items` | engineer, admin | `createBoqItem` |
+| `GET` | `/api/v1/boq-items` | client, engineer, supervisor, supplier, admin | `getBoqItems` |
+| `GET` | `/api/v1/boq-items/:id` | client, engineer, supervisor, supplier, admin | `getBoqItemById` |
+| `PUT` | `/api/v1/boq-items/:id` | engineer, admin | `updateBoqItem` |
+| `DELETE` | `/api/v1/boq-items/:id` | engineer, admin | `deleteBoqItem` |
+| `POST` | `/api/v1/rfqs` | engineer, admin | `createRfq` |
+| `GET` | `/api/v1/rfqs` | engineer, supplier, admin | `getRfqs` |
+| `GET` | `/api/v1/rfqs/:id` | engineer, supplier, admin | `getRfqById` |
+| `PUT` | `/api/v1/rfqs/:id` | engineer, admin | `updateRfq` |
+| `DELETE` | `/api/v1/rfqs/:id` | engineer, admin | `deleteRfq` |
+| `POST` | `/api/v1/quotes` | supplier | `createQuote` |
+| `GET` | `/api/v1/quotes` | engineer, supplier, admin | `getQuotes` |
+| `GET` | `/api/v1/quotes/:id` | engineer, supplier, admin | `getQuoteById` |
+| `PUT` | `/api/v1/quotes/:id` | supplier, engineer, admin | `updateQuote` |
+| `DELETE` | `/api/v1/quotes/:id` | supplier, admin | `deleteQuote` |
+| `POST` | `/api/v1/purchase-orders` | engineer, admin | `createPurchaseOrder` |
+| `GET` | `/api/v1/purchase-orders` | engineer, supplier, admin | `getPurchaseOrders` |
+| `GET` | `/api/v1/purchase-orders/:id` | engineer, supplier, admin | `getPurchaseOrderById` |
+| `PUT` | `/api/v1/purchase-orders/:id` | supplier, engineer, admin | `updatePurchaseOrder` |
+| `DELETE` | `/api/v1/purchase-orders/:id` | admin | `deletePurchaseOrder` |
+| `POST` | `/api/v1/deliveries` | supplier | `createDelivery` |
+| `GET` | `/api/v1/deliveries` | client, engineer, supplier, admin | `getDeliverys` |
+| `GET` | `/api/v1/deliveries/:id` | client, engineer, supplier, admin | `getDeliveryById` |
+| `PUT` | `/api/v1/deliveries/:id` | supplier, engineer, client, admin | `updateDelivery` |
+| `DELETE` | `/api/v1/deliveries/:id` | supplier, admin | `deleteDelivery` |
+| `POST` | `/api/v1/progress-photos` | engineer, supervisor, admin | `createProgressPhoto` |
+| `GET` | `/api/v1/progress-photos` | client, engineer, supervisor, admin | `getProgressPhotos` |
+| `GET` | `/api/v1/progress-photos/:id` | client, engineer, supervisor, admin | `getProgressPhotoById` |
+| `PUT` | `/api/v1/progress-photos/:id` | engineer, supervisor, admin | `updateProgressPhoto` |
+| `DELETE` | `/api/v1/progress-photos/:id` | engineer, supervisor, admin | `deleteProgressPhoto` |
+| `POST` | `/api/v1/inspections` | supervisor, admin | `createInspection` |
+| `GET` | `/api/v1/inspections` | client, engineer, supervisor, admin | `getInspections` |
+| `GET` | `/api/v1/inspections/:id` | client, engineer, supervisor, admin | `getInspectionById` |
+| `PUT` | `/api/v1/inspections/:id` | supervisor, admin | `updateInspection` |
+| `DELETE` | `/api/v1/inspections/:id` | supervisor, admin | `deleteInspection` |
+| `POST` | `/api/v1/disputes` | client, engineer, supplier | `createDispute` |
+| `GET` | `/api/v1/disputes` | client, engineer, supplier, admin | `getDisputes` |
+| `GET` | `/api/v1/disputes/:id` | client, engineer, supplier, admin | `getDisputeById` |
+| `PUT` | `/api/v1/disputes/:id` | admin | `updateDispute` |
+| `DELETE` | `/api/v1/disputes/:id` | admin | `deleteDispute` |
+| `POST` | `/api/v1/dispute-evidence` | client, engineer, supplier | `createDisputeEvidence` |
+| `GET` | `/api/v1/dispute-evidence` | client, engineer, supplier, admin | `getDisputeEvidences` |
+| `GET` | `/api/v1/dispute-evidence/:id` | client, engineer, supplier, admin | `getDisputeEvidenceById` |
+| `PUT` | `/api/v1/dispute-evidence/:id` | client, engineer, supplier, admin | `updateDisputeEvidence` |
+| `DELETE` | `/api/v1/dispute-evidence/:id` | client, engineer, supplier, admin | `deleteDisputeEvidence` |
+| `POST` | `/api/v1/messages` | client, engineer, supervisor, supplier, admin | `createMessage` |
+| `GET` | `/api/v1/messages` | client, engineer, supervisor, supplier, admin | `getMessages` |
+| `GET` | `/api/v1/messages/:id` | client, engineer, supervisor, supplier, admin | `getMessageById` |
+| `PUT` | `/api/v1/messages/:id` | client, engineer, supervisor, supplier, admin | `updateMessage` |
+| `DELETE` | `/api/v1/messages/:id` | client, engineer, supervisor, supplier, admin | `deleteMessage` |
+| `POST` | `/api/v1/notifications` | admin | `createNotification` |
+| `GET` | `/api/v1/notifications` | client, engineer, supervisor, supplier, admin | `getNotifications` |
+| `GET` | `/api/v1/notifications/:id` | client, engineer, supervisor, supplier, admin | `getNotificationById` |
+| `PUT` | `/api/v1/notifications/:id` | client, engineer, supervisor, supplier, admin | `updateNotification` |
+| `DELETE` | `/api/v1/notifications/:id` | client, engineer, supervisor, supplier, admin | `deleteNotification` |
+| `POST` | `/api/v1/audit-logs` | admin | `createAuditLog` |
+| `GET` | `/api/v1/audit-logs` | admin | `getAuditLogs` |
+| `GET` | `/api/v1/audit-logs/:id` | admin | `getAuditLogById` |
+| `PUT` | `/api/v1/audit-logs/:id` | admin | `updateAuditLog` |
+| `DELETE` | `/api/v1/audit-logs/:id` | admin | `deleteAuditLog` |
+| `POST` | `/api/v1/activity-logs` | client, engineer, supervisor, supplier, admin | `createActivityLog` |
+| `GET` | `/api/v1/activity-logs` | client, engineer, supervisor, supplier, admin | `getActivityLogs` |
+| `GET` | `/api/v1/activity-logs/:id` | client, engineer, supervisor, supplier, admin | `getActivityLogById` |
+| `PUT` | `/api/v1/activity-logs/:id` | admin | `updateActivityLog` |
+| `DELETE` | `/api/v1/activity-logs/:id` | admin | `deleteActivityLog` |
+| `POST` | `/api/v1/api-keys` | client, engineer, supervisor, supplier, admin | `createApiKey` |
+| `GET` | `/api/v1/api-keys` | client, engineer, supervisor, supplier, admin | `getApiKeys` |
+| `GET` | `/api/v1/api-keys/:id` | client, engineer, supervisor, supplier, admin | `getApiKeyById` |
+| `PUT` | `/api/v1/api-keys/:id` | client, engineer, supervisor, supplier, admin | `updateApiKey` |
+| `DELETE` | `/api/v1/api-keys/:id` | client, engineer, supervisor, supplier, admin | `deleteApiKey` |
+| `POST` | `/api/v1/system-settings` | admin | `createSystemSetting` |
+| `GET` | `/api/v1/system-settings` | admin | `getSystemSettings` |
+| `GET` | `/api/v1/system-settings/:id` | admin | `getSystemSettingById` |
+| `PUT` | `/api/v1/system-settings/:id` | admin | `updateSystemSetting` |
+| `DELETE` | `/api/v1/system-settings/:id` | admin | `deleteSystemSetting` |
+| `POST` | `/api/v1/email-templates` | admin | `createEmailTemplate` |
+| `GET` | `/api/v1/email-templates` | admin | `getEmailTemplates` |
+| `GET` | `/api/v1/email-templates/:id` | admin | `getEmailTemplateById` |
+| `PUT` | `/api/v1/email-templates/:id` | admin | `updateEmailTemplate` |
+| `DELETE` | `/api/v1/email-templates/:id` | admin | `deleteEmailTemplate` |
 
 ## Better Auth Routes
 
@@ -361,153 +387,159 @@ Core routes:
 
 | Method         | Route                               | Description                      |
 | -------------- | ----------------------------------- | -------------------------------- |
-| `GET`          | `/api/auth/ok`                      | Check Better Auth status         |
-| `POST`         | `/api/auth/sign-up/email`           | Sign up with email and password  |
-| `POST`         | `/api/auth/sign-in/email`           | Sign in with email and password  |
-| `POST`         | `/api/auth/sign-in/social`          | Start social sign-in flow        |
-| `GET`          | `/api/auth/callback/:id`            | OAuth callback route             |
-| `POST`         | `/api/auth/sign-out`                | Sign out current user            |
-| `GET` / `POST` | `/api/auth/get-session`             | Get the current session          |
-| `GET`          | `/api/auth/list-sessions`           | List current user sessions       |
-| `POST`         | `/api/auth/revoke-session`          | Revoke one session               |
-| `POST`         | `/api/auth/revoke-sessions`         | Revoke all current user sessions |
-| `POST`         | `/api/auth/revoke-other-sessions`   | Revoke other sessions            |
-| `POST`         | `/api/auth/update-session`          | Update current session data      |
-| `POST`         | `/api/auth/update-user`             | Update current user              |
-| `POST`         | `/api/auth/change-password`         | Change current user password     |
-| `POST`         | `/api/auth/change-email`            | Change current user email        |
-| `POST`         | `/api/auth/delete-user`             | Request or delete current user   |
-| `GET`          | `/api/auth/delete-user/callback`    | Delete user callback route       |
-| `POST`         | `/api/auth/request-password-reset`  | Request password reset email     |
-| `GET`          | `/api/auth/reset-password/:token`   | Password reset callback route    |
-| `POST`         | `/api/auth/reset-password`          | Reset password                   |
-| `POST`         | `/api/auth/verify-password`         | Verify current password          |
-| `POST`         | `/api/auth/send-verification-email` | Send verification email          |
-| `GET`          | `/api/auth/verify-email`            | Verify email address             |
-| `GET`          | `/api/auth/list-accounts`           | List linked accounts             |
-| `POST`         | `/api/auth/link-social`             | Link a social account            |
-| `POST`         | `/api/auth/unlink-account`          | Unlink an account                |
-| `GET`          | `/api/auth/get-access-token`        | Get account access token         |
-| `POST`         | `/api/auth/refresh-token`           | Refresh account token            |
-| `GET`          | `/api/auth/account-info`            | Get linked account info          |
-| `GET`          | `/api/auth/error`                   | Better Auth error route          |
+| `GET`          | `/api/v1/auth/ok`                      | Check Better Auth status         |
+| `POST`         | `/api/v1/auth/sign-up/email`           | Sign up with email and password  |
+| `POST`         | `/api/v1/auth/sign-in/email`           | Sign in with email and password  |
+| `POST`         | `/api/v1/auth/sign-in/social`          | Start social sign-in flow        |
+| `GET`          | `/api/v1/auth/callback/:id`            | OAuth callback route             |
+| `POST`         | `/api/v1/auth/sign-out`                | Sign out current user            |
+| `GET` / `POST` | `/api/v1/auth/get-session`             | Get the current session          |
+| `GET`          | `/api/v1/auth/list-sessions`           | List current user sessions       |
+| `POST`         | `/api/v1/auth/revoke-session`          | Revoke one session               |
+| `POST`         | `/api/v1/auth/revoke-sessions`         | Revoke all current user sessions |
+| `POST`         | `/api/v1/auth/revoke-other-sessions`   | Revoke other sessions            |
+| `POST`         | `/api/v1/auth/update-session`          | Update current session data      |
+| `POST`         | `/api/v1/auth/update-user`             | Update current user              |
+| `POST`         | `/api/v1/auth/change-password`         | Change current user password     |
+| `POST`         | `/api/v1/auth/change-email`            | Change current user email        |
+| `POST`         | `/api/v1/auth/delete-user`             | Request or delete current user   |
+| `GET`          | `/api/v1/auth/delete-user/callback`    | Delete user callback route       |
+| `POST`         | `/api/v1/auth/request-password-reset`  | Request password reset email     |
+| `GET`          | `/api/v1/auth/reset-password/:token`   | Password reset callback route    |
+| `POST`         | `/api/v1/auth/reset-password`          | Reset password                   |
+| `POST`         | `/api/v1/auth/verify-password`         | Verify current password          |
+| `POST`         | `/api/v1/auth/send-verification-email` | Send verification email          |
+| `GET`          | `/api/v1/auth/verify-email`            | Verify email address             |
+| `GET`          | `/api/v1/auth/list-accounts`           | List linked accounts             |
+| `POST`         | `/api/v1/auth/link-social`             | Link a social account            |
+| `POST`         | `/api/v1/auth/unlink-account`          | Unlink an account                |
+| `GET`          | `/api/v1/auth/get-access-token`        | Get account access token         |
+| `POST`         | `/api/v1/auth/refresh-token`           | Refresh account token            |
+| `GET`          | `/api/v1/auth/account-info`            | Get linked account info          |
+| `GET`          | `/api/v1/auth/error`                   | Better Auth error route          |
 
 Username plugin routes:
 
 | Method | Route                             | Description                        |
 | ------ | --------------------------------- | ---------------------------------- |
-| `POST` | `/api/auth/sign-in/username`      | Sign in with username and password |
-| `POST` | `/api/auth/is-username-available` | Check username availability        |
+| `POST` | `/api/v1/auth/sign-in/username`      | Sign in with username and password |
+| `POST` | `/api/v1/auth/is-username-available` | Check username availability        |
 
 Phone number plugin routes:
 
 | Method | Route                                           | Description                            |
 | ------ | ----------------------------------------------- | -------------------------------------- |
-| `POST` | `/api/auth/sign-in/phone-number`                | Sign in with phone number and password |
-| `POST` | `/api/auth/phone-number/send-otp`               | Send phone verification OTP            |
-| `POST` | `/api/auth/phone-number/verify`                 | Verify phone number OTP                |
-| `POST` | `/api/auth/phone-number/request-password-reset` | Request phone password reset           |
-| `POST` | `/api/auth/phone-number/reset-password`         | Reset password with phone OTP          |
+| `POST` | `/api/v1/auth/sign-in/phone-number`                | Sign in with phone number and password |
+| `POST` | `/api/v1/auth/phone-number/send-otp`               | Send phone verification OTP            |
+| `POST` | `/api/v1/auth/phone-number/verify`                 | Verify phone number OTP                |
+| `POST` | `/api/v1/auth/phone-number/request-password-reset` | Request phone password reset           |
+| `POST` | `/api/v1/auth/phone-number/reset-password`         | Reset password with phone OTP          |
 
 Admin plugin routes:
 
 | Method | Route                                  | Description                    |
 | ------ | -------------------------------------- | ------------------------------ |
-| `POST` | `/api/auth/admin/set-role`             | Set a user's role              |
-| `GET`  | `/api/auth/admin/get-user`             | Get one user                   |
-| `POST` | `/api/auth/admin/create-user`          | Create a user                  |
-| `POST` | `/api/auth/admin/update-user`          | Update a user                  |
-| `GET`  | `/api/auth/admin/list-users`           | List users                     |
-| `POST` | `/api/auth/admin/list-user-sessions`   | List sessions for a user       |
-| `POST` | `/api/auth/admin/ban-user`             | Ban a user                     |
-| `POST` | `/api/auth/admin/unban-user`           | Unban a user                   |
-| `POST` | `/api/auth/admin/impersonate-user`     | Impersonate a user             |
-| `POST` | `/api/auth/admin/stop-impersonating`   | Stop impersonating             |
-| `POST` | `/api/auth/admin/revoke-user-session`  | Revoke one user session        |
-| `POST` | `/api/auth/admin/revoke-user-sessions` | Revoke all sessions for a user |
-| `POST` | `/api/auth/admin/remove-user`          | Remove a user                  |
-| `POST` | `/api/auth/admin/set-user-password`    | Set a user's password          |
-| `POST` | `/api/auth/admin/has-permission`       | Check admin permissions        |
+| `POST` | `/api/v1/auth/admin/set-role`             | Set a user's role              |
+| `GET`  | `/api/v1/auth/admin/get-user`             | Get one user                   |
+| `POST` | `/api/v1/auth/admin/create-user`          | Create a user                  |
+| `POST` | `/api/v1/auth/admin/update-user`          | Update a user                  |
+| `GET`  | `/api/v1/auth/admin/list-users`           | List users                     |
+| `POST` | `/api/v1/auth/admin/list-user-sessions`   | List sessions for a user       |
+| `POST` | `/api/v1/auth/admin/ban-user`             | Ban a user                     |
+| `POST` | `/api/v1/auth/admin/unban-user`           | Unban a user                   |
+| `POST` | `/api/v1/auth/admin/impersonate-user`     | Impersonate a user             |
+| `POST` | `/api/v1/auth/admin/stop-impersonating`   | Stop impersonating             |
+| `POST` | `/api/v1/auth/admin/revoke-user-session`  | Revoke one user session        |
+| `POST` | `/api/v1/auth/admin/revoke-user-sessions` | Revoke all sessions for a user |
+| `POST` | `/api/v1/auth/admin/remove-user`          | Remove a user                  |
+| `POST` | `/api/v1/auth/admin/set-user-password`    | Set a user's password          |
+| `POST` | `/api/v1/auth/admin/has-permission`       | Check admin permissions        |
 
 ## KYC Routes
 
 | Method | Route                  | Roles | Description             |
 | ------ | ---------------------- | ----- | ----------------------- |
-| `POST` | `/api/kyc/documents`   | authenticated user | Upload KYC document |
-| `GET`  | `/api/kyc/status`      | authenticated user | Get current user KYC status |
-| `GET`  | `/api/kyc/pending`     | admin | Get pending KYC submissions |
-| `POST` | `/api/kyc/:userId/approve` | admin | Approve a user's KYC |
-| `POST` | `/api/kyc/:userId/reject`  | admin | Reject a user's KYC |
+| `POST` | `/api/v1/kyc/documents`   | authenticated user | Upload KYC document |
+| `GET`  | `/api/v1/kyc/status`      | authenticated user | Get current user KYC status |
+| `GET`  | `/api/v1/kyc/pending`     | admin | Get pending KYC submissions |
+| `POST` | `/api/v1/kyc/:userId/approve` | admin | Approve a user's KYC |
+| `POST` | `/api/v1/kyc/:userId/reject`  | admin | Reject a user's KYC |
 
 ## Project Structure
 
 ```text
 src/
   app.ts                         Express app entry point
-  controllers/
-    account.controller.ts
-    activity-log.controller.ts
-    api-key.controller.ts
-    audit-log.controller.ts
-    boq-item.controller.ts
-    delivery.controller.ts
-    dispute-evidence.controller.ts
-    dispute.controller.ts
-    email-template.controller.ts
-    escrow-account.controller.ts
-    inspection.controller.ts
-    kyc.controller.ts
-    message.controller.ts
-    milestone.controller.ts
-    notification.controller.ts
-    progress-photo.controller.ts
-    project-member.controller.ts
-    project.controller.ts
-    purchase-order.controller.ts
-    quote.controller.ts
-    rfq.controller.ts
-    session.controller.ts
-    system-setting.controller.ts
-    transaction.controller.ts
-    user.controller.ts
-    verification.controller.ts
+  api/
+    v1/
+      index.ts                   Versioned API v1 route registry
+      docs/
+        openapi.ts               OpenAPI route definitions
+        swagger.route.ts         Swagger UI and JSON routes
+      controllers/
+        account.controller.ts
+        activity-log.controller.ts
+        api-key.controller.ts
+        audit-log.controller.ts
+        boq-item.controller.ts
+        delivery.controller.ts
+        dispute-evidence.controller.ts
+        dispute.controller.ts
+        email-template.controller.ts
+        escrow-account.controller.ts
+        inspection.controller.ts
+        kyc.controller.ts
+        message.controller.ts
+        milestone.controller.ts
+        notification.controller.ts
+        progress-photo.controller.ts
+        project-member.controller.ts
+        project.controller.ts
+        purchase-order.controller.ts
+        quote.controller.ts
+        rfq.controller.ts
+        session.controller.ts
+        system-setting.controller.ts
+        transaction.controller.ts
+        user.controller.ts
+        verification.controller.ts
+      middleware/
+        auth.middleware.ts       Auth middleware
+        role.middleware.ts       Role middleware
+        upload.middleware.ts     Upload middleware
+      routes/
+        account.route.ts
+        activity-log.route.ts
+        api-key.route.ts
+        audit-log.route.ts
+        boq-item.route.ts
+        delivery.route.ts
+        dispute-evidence.route.ts
+        dispute.route.ts
+        email-template.route.ts
+        escrow-account.route.ts
+        inspection.route.ts
+        kyc.route.ts
+        message.route.ts
+        milestone.route.ts
+        notification.route.ts
+        progress-photo.route.ts
+        project-member.route.ts
+        project.route.ts
+        purchase-order.route.ts
+        quote.route.ts
+        rfq.route.ts
+        session.route.ts
+        system-setting.route.ts
+        transaction.route.ts
+        user.route.ts
+        verification.route.ts
   lib/
     africatalking.ts             Africa's Talking SMS client
     auth.ts                      Better Auth configuration
     cloudinary.ts                Cloudinary configuration
     prisma.ts                    Prisma client setup
     resend.ts                    Resend email client
-  middleware/
-    auth.middleware.ts           Auth middleware
-    role.middleware.ts           Role middleware
-    upload.middleware.ts         Upload middleware
-  routes/
-    account.route.ts
-    activity-log.route.ts
-    api-key.route.ts
-    audit-log.route.ts
-    boq-item.route.ts
-    delivery.route.ts
-    dispute-evidence.route.ts
-    dispute.route.ts
-    email-template.route.ts
-    escrow-account.route.ts
-    inspection.route.ts
-    kyc.route.ts
-    message.route.ts
-    milestone.route.ts
-    notification.route.ts
-    progress-photo.route.ts
-    project-member.route.ts
-    project.route.ts
-    purchase-order.route.ts
-    quote.route.ts
-    rfq.route.ts
-    session.route.ts
-    system-setting.route.ts
-    transaction.route.ts
-    user.route.ts
-    verification.route.ts
   types/
     express.d.ts                 Express type extensions
   utils/

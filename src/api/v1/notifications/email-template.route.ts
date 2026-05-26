@@ -1,0 +1,20 @@
+import { Router } from "express";
+import {
+  createEmailTemplate,
+  deleteEmailTemplate,
+  getEmailTemplateById,
+  getEmailTemplates,
+  updateEmailTemplate,
+} from "./email-template.controller";
+import { requiredAuth } from "../middleware/auth.middleware";
+import { requireRole } from "../middleware/role.middleware";
+
+const router = Router();
+
+router.post("/", requiredAuth, requireRole("admin"), createEmailTemplate);
+router.get("/", requiredAuth, requireRole("admin"), getEmailTemplates);
+router.get("/:id", requiredAuth, requireRole("admin"), getEmailTemplateById);
+router.put("/:id", requiredAuth, requireRole("admin"), updateEmailTemplate);
+router.delete("/:id", requiredAuth, requireRole("admin"), deleteEmailTemplate);
+
+export default router;
