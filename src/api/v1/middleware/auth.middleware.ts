@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { auth } from "../../../lib/auth";
+import { auth } from "../../../config/auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { authenticatedUserRateLimit } from "./auth-security.middleware";
 

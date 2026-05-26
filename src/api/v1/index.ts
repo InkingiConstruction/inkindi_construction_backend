@@ -1,60 +1,82 @@
 import { Router } from "express";
 import swaggerRoutes from "./docs/swagger.route";
-import kycRoutes from "./routes/kyc.route";
-import userRoutes from "./routes/user.route";
-import sessionRoutes from "./routes/session.route";
-import accountRoutes from "./routes/account.route";
-import verificationRoutes from "./routes/verification.route";
-import projectRoutes from "./routes/project.route";
-import projectMemberRoutes from "./routes/project-member.route";
-import escrowAccountRoutes from "./routes/escrow-account.route";
-import transactionRoutes from "./routes/transaction.route";
-import milestoneRoutes from "./routes/milestone.route";
-import boqItemRoutes from "./routes/boq-item.route";
-import rfqRoutes from "./routes/rfq.route";
-import quoteRoutes from "./routes/quote.route";
-import purchaseOrderRoutes from "./routes/purchase-order.route";
-import deliveryRoutes from "./routes/delivery.route";
-import progressPhotoRoutes from "./routes/progress-photo.route";
-import inspectionRoutes from "./routes/inspection.route";
-import disputeRoutes from "./routes/dispute.route";
-import disputeEvidenceRoutes from "./routes/dispute-evidence.route";
-import messageRoutes from "./routes/message.route";
-import notificationRoutes from "./routes/notification.route";
-import auditLogRoutes from "./routes/audit-log.route";
-import activityLogRoutes from "./routes/activity-log.route";
-import apiKeyRoutes from "./routes/api-key.route";
-import systemSettingRoutes from "./routes/system-setting.route";
-import emailTemplateRoutes from "./routes/email-template.route";
+
+import sessionRoutes from "./auth/session.route";
+import verificationRoutes from "./auth/verification.route";
+import apiKeyRoutes from "./auth/api-key.route";
+
+import userRoutes from "./users/user.route";
+import accountRoutes from "./users/account.route";
+
+import kycRoutes from "./kyc/kyc.route";
+
+import projectRoutes from "./projects/project.route";
+import projectMemberRoutes from "./projects/project-member.route";
+import progressPhotoRoutes from "./projects/progress-photo.route";
+
+import milestoneRoutes from "./milestones/milestone.route";
+import boqItemRoutes from "./milestones/boq-item.route";
+
+import escrowAccountRoutes from "./escrow/escrow-account.route";
+import transactionRoutes from "./transactions/transaction.route";
+
+import rfqRoutes from "./rfqs/rfq.route";
+import purchaseOrderRoutes from "./rfqs/purchase-order.route";
+import quoteRoutes from "./quotes/quote.route";
+import deliveryRoutes from "./deliveries/delivery.route";
+
+import inspectionRoutes from "./inspections/inspection.route";
+
+import disputeRoutes from "./disputes/dispute.route";
+import disputeEvidenceRoutes from "./disputes/dispute-evidence.route";
+
+import notificationRoutes from "./notifications/notification.route";
+import messageRoutes from "./notifications/message.route";
+import emailTemplateRoutes from "./notifications/email-template.route";
+
+import systemSettingRoutes from "./admin/system-setting.route";
+import auditLogRoutes from "./admin/audit-log.route";
+import activityLogRoutes from "./admin/activity-log.route";
 
 const router = Router();
 
 router.use("/", swaggerRoutes);
-router.use("/kyc", kycRoutes);
-router.use("/users", userRoutes);
+
 router.use("/sessions", sessionRoutes);
-router.use("/accounts", accountRoutes);
 router.use("/verifications", verificationRoutes);
+router.use("/api-keys", apiKeyRoutes);
+
+router.use("/users", userRoutes);
+router.use("/accounts", accountRoutes);
+
+router.use("/kyc", kycRoutes);
+
 router.use("/projects", projectRoutes);
 router.use("/project-members", projectMemberRoutes);
-router.use("/escrow-accounts", escrowAccountRoutes);
-router.use("/transactions", transactionRoutes);
+router.use("/progress-photos", progressPhotoRoutes);
+
 router.use("/milestones", milestoneRoutes);
 router.use("/boq-items", boqItemRoutes);
+
+router.use("/escrow-accounts", escrowAccountRoutes);
+router.use("/transactions", transactionRoutes);
+
 router.use("/rfqs", rfqRoutes);
 router.use("/quotes", quoteRoutes);
 router.use("/purchase-orders", purchaseOrderRoutes);
 router.use("/deliveries", deliveryRoutes);
-router.use("/progress-photos", progressPhotoRoutes);
+
 router.use("/inspections", inspectionRoutes);
+
 router.use("/disputes", disputeRoutes);
 router.use("/dispute-evidence", disputeEvidenceRoutes);
+
 router.use("/messages", messageRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/email-templates", emailTemplateRoutes);
+
 router.use("/audit-logs", auditLogRoutes);
 router.use("/activity-logs", activityLogRoutes);
-router.use("/api-keys", apiKeyRoutes);
 router.use("/system-settings", systemSettingRoutes);
-router.use("/email-templates", emailTemplateRoutes);
 
 export default router;
