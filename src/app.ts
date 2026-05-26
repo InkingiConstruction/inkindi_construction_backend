@@ -19,6 +19,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:8081",
   "http://192.168.1.171:8081",
+  "https://inkindi-construction-backend.onrender.com",
   process.env.FRONTEND_URL,
   process.env.MOBILE_URL,
   ...envAllowedOrigins,

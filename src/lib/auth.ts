@@ -71,6 +71,7 @@ export const auth = betterAuth({
     "http://localhost:5173",
     "http://localhost:8081",
     "http://192.168.1.171:8081",
+    "https://inkindi-construction-backend.onrender.com",
     ...envTrustedOrigins,
   ],
 });
