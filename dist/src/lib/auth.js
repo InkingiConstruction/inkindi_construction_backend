@@ -15,8 +15,18 @@ const envTrustedOrigins = (process.env.CORS_ORIGINS || "")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
+const usesHttpsAuthUrl = process.env.BETTER_AUTH_URL?.startsWith("https://");
 exports.auth = (0, better_auth_1.betterAuth)({
     basePath: "/api/v1/auth",
+    advanced: {
+        useSecureCookies: Boolean(usesHttpsAuthUrl),
+        defaultCookieAttributes: usesHttpsAuthUrl
+            ? {
+                sameSite: "none",
+                secure: true,
+            }
+            : undefined,
+    },
     rateLimit: {
         enabled: true,
         window: 60,

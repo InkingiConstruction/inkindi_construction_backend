@@ -53,15 +53,6 @@ app.use(
   }),
 );
 
-app.use("/api/v1/auth", (req, _res, next) => {
-  if (!isProduction && !req.headers.origin) {
-    req.headers.origin = process.env.BETTER_AUTH_URL || "http://localhost:3000";
-  }
-
-  next();
-});
-
-app.post("/api/v1/auth/sign-in/email", express.json(), emailSignInLockout);
 app.all("/api/v1/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
