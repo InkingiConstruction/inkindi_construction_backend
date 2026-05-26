@@ -117,6 +117,24 @@ const canUpdateProject = (project: any, userId: string, role: string) => {
   return false;
 };
 
+const projectListInclude = {
+  client: {
+    select: { id: true, name: true, email: true, role: true, image: true },
+  },
+  engineer: {
+    select: { id: true, name: true, email: true, role: true, image: true },
+  },
+  projectMembers: {
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, role: true, image: true },
+      },
+    },
+  },
+  milestones: true,
+  escrowAccount: true,
+};
+
 export class ProjectService {
   /**
    * ============================================================================
@@ -183,19 +201,30 @@ export class ProjectService {
    */
   static async getProjects(role: string, userId: string) {
     if (role === "client") {
-      return await prisma.project.findMany({ where: { clientId: userId } });
+      return await prisma.project.findMany({
+        where: { clientId: userId },
+        include: projectListInclude,
+        orderBy: { createdAt: "desc" },
+      });
     } else if (role === "engineer") {
       return await prisma.project.findMany({
         where: {
           OR: [{ engineerId: userId }, { projectMembers: { some: { userId } } }],
         },
+        include: projectListInclude,
+        orderBy: { createdAt: "desc" },
       });
     } else if (role === "supervisor" || role === "supplier") {
       return await prisma.project.findMany({
         where: { projectMembers: { some: { userId } } },
+        include: projectListInclude,
+        orderBy: { createdAt: "desc" },
       });
     }
-    return await prisma.project.findMany();
+    return await prisma.project.findMany({
+      include: projectListInclude,
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   /**

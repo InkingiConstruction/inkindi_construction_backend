@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const kyc_controller_js_1 = require("./kyc.controller.js");
+const auth_middleware_js_1 = require("../middleware/auth.middleware.js");
+const role_middleware_js_1 = require("../middleware/role.middleware.js");
+const upload_middleware_js_1 = require("../middleware/upload.middleware.js");
+const router = (0, express_1.Router)();
+router.post("/documents", auth_middleware_js_1.requiredAuth, upload_middleware_js_1.uploadImages, kyc_controller_js_1.uploadDocument);
+router.get("/status", auth_middleware_js_1.requiredAuth, kyc_controller_js_1.getKycStatus);
+router.get("/pending", auth_middleware_js_1.requiredAuth, role_middleware_js_1.isAdmin, kyc_controller_js_1.getPendingKyc);
+router.post("/:userId/approve", auth_middleware_js_1.requiredAuth, role_middleware_js_1.isAdmin, kyc_controller_js_1.approveKyc);
+router.post("/:userId/reject", auth_middleware_js_1.requiredAuth, role_middleware_js_1.isAdmin, kyc_controller_js_1.rejectKyc);
+exports.default = router;
