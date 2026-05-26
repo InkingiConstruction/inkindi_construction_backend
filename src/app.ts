@@ -40,6 +40,7 @@ const envAllowedOrigins = (process.env.CORS_ORIGINS || "")
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "http://localhost:8081",
   "http://192.168.1.171:8081",
   process.env.FRONTEND_URL,
@@ -92,14 +93,6 @@ app.use(
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   }),
 );
-
-// 4. Authentication Gateways & Handlers
-app.use("/api/v1/auth", (req, _res, next) => {
-  if (!isProduction && !req.headers.origin) {
-    req.headers.origin = process.env.BETTER_AUTH_URL || "http://localhost:3000";
-  }
-  next();
-});
 
 app.all("/api/v1/auth/*splat", toNodeHandler(auth));
 
