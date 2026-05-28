@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import prisma from "./db.js";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { admin, phoneNumber, username, emailOTP } from "better-auth/plugins";
+import { expo } from "@better-auth/expo";
 import sendEmail from "../integrations/resend.js";
 import { sendSMS } from "../integrations/africastalking.js";
 import {
@@ -42,6 +43,7 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
   },
   plugins: [
+    expo(),
     username(),
     phoneNumber({
       otpLength: 6,
@@ -83,6 +85,17 @@ export const auth = betterAuth({
     "http://127.0.0.1:5173",
     "http://localhost:8081",
     "http://192.168.1.171:8081",
+    "inkindiapp://",
+    "inkindiapp://*",
+    ...(process.env.NODE_ENV === "development"
+      ? [
+          "exp://",
+          "exp://**",
+          "exp://192.168.*.*:*/**",
+          "exp://10.*.*.*:*/**",
+          "exp://172.*.*.*:*/**",
+        ]
+      : []),
     "https://inkindi-construction-backend.onrender.com",
     ...envTrustedOrigins,
   ].filter(Boolean),
