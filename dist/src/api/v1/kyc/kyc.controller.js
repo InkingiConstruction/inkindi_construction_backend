@@ -39,20 +39,14 @@ const uploadKycFile = (file) => new Promise((resolve, reject) => {
 });
 const uploadDocument = async (req, res, next) => {
     try {
-        const { type, cloudinaryUrl, publicId } = req.body;
+        const { type } = req.body;
         const files = req.files || [];
         const file = files[0];
-        let documentUrl = cloudinaryUrl;
-        let documentPublicId = publicId;
-        if (file) {
-            const uploaded = await uploadKycFile(file);
-            documentUrl = uploaded.secure_url;
-            documentPublicId = uploaded.public_id;
-        }
-        if (!documentUrl || !documentPublicId) {
+        if (!file) {
             return res.status(400).json({ message: "KYC document file is required" });
         }
-        const document = await kyc_service_1.KycService.uploadDocument(req.user.id, req.user.role, req.user.emailVerified, req.user.phoneNumberVerified, type, documentUrl, documentPublicId);
+        const uploaded = await uploadKycFile(file);
+        const document = await kyc_service_1.KycService.uploadDocument(req.user.id, req.user.role, req.user.emailVerified, req.user.phoneNumberVerified, type, uploaded.secure_url, uploaded.public_id);
         res.status(201).json({ message: "Document uploaded successfully", document });
     }
     catch (error) {

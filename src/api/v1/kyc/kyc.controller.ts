@@ -45,22 +45,15 @@ const uploadKycFile = (file: Express.Multer.File) =>
 
 export const uploadDocument = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { type, cloudinaryUrl, publicId } = req.body;
+    const { type } = req.body;
     const files = (req.files as Express.Multer.File[]) || [];
     const file = files[0];
 
-    let documentUrl = cloudinaryUrl;
-    let documentPublicId = publicId;
-
-    if (file) {
-      const uploaded = await uploadKycFile(file);
-      documentUrl = uploaded.secure_url;
-      documentPublicId = uploaded.public_id;
-    }
-
-    if (!documentUrl || !documentPublicId) {
+    if (!file) {
       return res.status(400).json({ message: "KYC document file is required" });
     }
+
+    const uploaded = await uploadKycFile(file);
     
     const document = await KycService.uploadDocument(
       req.user.id,
@@ -68,8 +61,8 @@ export const uploadDocument = async (req: Request, res: Response, next: NextFunc
       req.user.emailVerified,
       req.user.phoneNumberVerified,
       type,
-      documentUrl,
-      documentPublicId
+      uploaded.secure_url,
+      uploaded.public_id
     );
 
     res.status(201).json({ message: "Document uploaded successfully", document });
