@@ -17,7 +17,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.KycService = void 0;
 const db_js_1 = __importDefault(require("../../../config/db.js"));
-const resend_js_1 = __importDefault(require("../../../integrations/resend.js"));
+const resend_js_1 = require("../../../integrations/resend.js");
 const email_tempelates_js_1 = require("../../../utils/email-tempelates.js");
 /**
  * 🧱 CODE BLOCK: Required Document Map
@@ -148,7 +148,7 @@ class KycService {
             data: { kycStatus: "approved", kycReviewedAt: new Date(), kycRejectionReason: null },
         });
         const template = (0, email_tempelates_js_1.kycApprovedTemplate)(updatedUser.name);
-        await (0, resend_js_1.default)({ to: updatedUser.email, ...template });
+        await (0, resend_js_1.sendEmail)({ to: updatedUser.email, ...template });
     }
     /**
      * ============================================================================
@@ -172,7 +172,7 @@ class KycService {
             data: { kycStatus: "rejected", kycReviewedAt: new Date(), kycRejectionReason: reason },
         });
         const template = (0, email_tempelates_js_1.kycRejectedTemplate)(updatedUser.name, reason);
-        await (0, resend_js_1.default)({ to: updatedUser.email, ...template });
+        await (0, resend_js_1.sendEmail)({ to: updatedUser.email, ...template });
     }
 }
 exports.KycService = KycService;

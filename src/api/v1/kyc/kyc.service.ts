@@ -13,7 +13,7 @@
 
 import { KycDocumentType } from "@prisma/client";
 import prisma from "../../../config/db.js";
-import sendEmail from "../../../integrations/resend.js";
+import { sendEmail } from "../../../integrations/resend.js";
 import { kycApprovedTemplate, kycRejectedTemplate } from "../../../utils/email-tempelates.js";
 
 /**

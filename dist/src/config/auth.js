@@ -9,7 +9,7 @@ const db_js_1 = __importDefault(require("./db.js"));
 const prisma_1 = require("better-auth/adapters/prisma");
 const plugins_1 = require("better-auth/plugins");
 const expo_1 = require("@better-auth/expo");
-const resend_js_1 = __importDefault(require("../integrations/resend.js"));
+const resend_js_1 = require("../integrations/resend.js");
 const africastalking_js_1 = require("../integrations/africastalking.js");
 const email_tempelates_js_1 = require("../utils/email-tempelates.js");
 const envTrustedOrigins = (process.env.CORS_ORIGINS || "")
@@ -57,15 +57,15 @@ exports.auth = (0, better_auth_1.betterAuth)({
             async sendVerificationOTP({ email, otp, type }) {
                 if (type === "email-verification") {
                     const template = (0, email_tempelates_js_1.emailVerificationTemplate)(otp);
-                    await (0, resend_js_1.default)({ to: email, ...template });
+                    await (0, resend_js_1.sendEmail)({ to: email, ...template });
                 }
                 else if (type === "forget-password") {
                     const template = (0, email_tempelates_js_1.passwordResetTemplate)(otp);
-                    await (0, resend_js_1.default)({ to: email, ...template });
+                    await (0, resend_js_1.sendEmail)({ to: email, ...template });
                 }
                 else if (type === "sign-in") {
                     const template = (0, email_tempelates_js_1.signInOTPTemplate)(otp);
-                    await (0, resend_js_1.default)({ to: email, ...template });
+                    await (0, resend_js_1.sendEmail)({ to: email, ...template });
                 }
             },
         }),

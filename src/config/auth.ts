@@ -3,7 +3,7 @@ import prisma from "./db.js";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { admin, phoneNumber, username, emailOTP } from "better-auth/plugins";
 import { expo } from "@better-auth/expo";
-import sendEmail from "../integrations/resend.js";
+import { sendEmail } from "../integrations/resend.js";
 import { sendSMS } from "../integrations/africastalking.js";
 import {
   emailVerificationTemplate,
