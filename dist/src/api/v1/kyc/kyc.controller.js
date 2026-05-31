@@ -15,8 +15,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rejectKyc = exports.approveKyc = exports.getPendingKyc = exports.getKycStatus = exports.uploadDocument = void 0;
+exports.rejectKyc = exports.approveKyc = exports.getPendingKyc = exports.autoVerifyPhone = exports.getKycStatus = exports.uploadDocument = void 0;
 const cloudinary_js_1 = __importDefault(require("../../../config/cloudinary.js"));
+const db_js_1 = __importDefault(require("../../../config/db.js"));
 const kyc_service_1 = require("./kyc.service");
 /**
  * 🧱 CODE BLOCK: KYC HTTP Route Actions
@@ -75,6 +76,28 @@ const getKycStatus = async (req, res, next) => {
     }
 };
 exports.getKycStatus = getKycStatus;
+const autoVerifyPhone = async (req, res, next) => {
+    try {
+        const { phoneNumber } = req.body;
+        const user = await db_js_1.default.user.update({
+            where: { id: req.user.id },
+            data: {
+                phoneNumber: phoneNumber || req.user.phoneNumber,
+                phoneNumberVerified: true,
+            },
+            select: {
+                id: true,
+                phoneNumber: true,
+                phoneNumberVerified: true,
+            },
+        });
+        res.json({ message: "Phone auto verified", user });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.autoVerifyPhone = autoVerifyPhone;
 const getPendingKyc = async (req, res, next) => {
     try {
         const page = Number(req.query.page) || 1;

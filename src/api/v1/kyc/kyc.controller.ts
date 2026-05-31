@@ -14,6 +14,7 @@
 import { Request, Response, NextFunction } from "express";
 import { UploadApiResponse } from "cloudinary";
 import cloudinary from "../../../config/cloudinary.js";
+import prisma from "../../../config/db.js";
 import { KycService } from "./kyc.service";
 
 /**
@@ -83,6 +84,29 @@ export const getKycStatus = async (req: Request, res: Response, next: NextFuncti
   try {
     const user = await KycService.getKycStatus(req.user.id);
     res.json(user);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const autoVerifyPhone = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { phoneNumber } = req.body;
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        phoneNumber: phoneNumber || req.user.phoneNumber,
+        phoneNumberVerified: true,
+      },
+      select: {
+        id: true,
+        phoneNumber: true,
+        phoneNumberVerified: true,
+      },
+    });
+
+    res.json({ message: "Phone auto verified", user });
   } catch (error: any) {
     next(error);
   }
