@@ -11,8 +11,12 @@
  * PRINCIPLE APPLIED   : SOLID (Isolated HTTP delivery controller)
  * ============================================================================
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.rejectKyc = exports.approveKyc = exports.getPendingKyc = exports.getKycStatus = exports.uploadDocument = void 0;
+const cloudinary_js_1 = __importDefault(require("../../../config/cloudinary.js"));
 const kyc_service_1 = require("./kyc.service");
 /**
  * 🧱 CODE BLOCK: KYC HTTP Route Actions
@@ -20,10 +24,35 @@ const kyc_service_1 = require("./kyc.service");
  * WHY IT IS HERE  : Interfaces express framework pipelines directly to background logic layers
  * PRINCIPLE       : SOLID (This layer only manages web concerns)
  */
+const uploadKycFile = (file) => new Promise((resolve, reject) => {
+    const stream = cloudinary_js_1.default.uploader.upload_stream({
+        folder: "inkingi/kyc",
+        resource_type: "image",
+    }, (error, result) => {
+        if (error || !result) {
+            reject(error);
+            return;
+        }
+        resolve(result);
+    });
+    stream.end(file.buffer);
+});
 const uploadDocument = async (req, res, next) => {
     try {
         const { type, cloudinaryUrl, publicId } = req.body;
-        const document = await kyc_service_1.KycService.uploadDocument(req.user.id, req.user.role, req.user.emailVerified, req.user.phoneNumberVerified, type, cloudinaryUrl, publicId);
+        const files = req.files || [];
+        const file = files[0];
+        let documentUrl = cloudinaryUrl;
+        let documentPublicId = publicId;
+        if (file) {
+            const uploaded = await uploadKycFile(file);
+            documentUrl = uploaded.secure_url;
+            documentPublicId = uploaded.public_id;
+        }
+        if (!documentUrl || !documentPublicId) {
+            return res.status(400).json({ message: "KYC document file is required" });
+        }
+        const document = await kyc_service_1.KycService.uploadDocument(req.user.id, req.user.role, req.user.emailVerified, req.user.phoneNumberVerified, type, documentUrl, documentPublicId);
         res.status(201).json({ message: "Document uploaded successfully", document });
     }
     catch (error) {

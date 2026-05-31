@@ -12,6 +12,8 @@
  */
 
 import { Request, Response, NextFunction } from "express";
+import { UploadApiResponse } from "cloudinary";
+import cloudinary from "../../../config/cloudinary.js";
 import { KycService } from "./kyc.service";
 
 /**
@@ -21,9 +23,44 @@ import { KycService } from "./kyc.service";
  * PRINCIPLE       : SOLID (This layer only manages web concerns)
  */
 
+const uploadKycFile = (file: Express.Multer.File) =>
+  new Promise<UploadApiResponse>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "inkingi/kyc",
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (error || !result) {
+          reject(error);
+          return;
+        }
+
+        resolve(result);
+      },
+    );
+
+    stream.end(file.buffer);
+  });
+
 export const uploadDocument = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { type, cloudinaryUrl, publicId } = req.body;
+    const files = (req.files as Express.Multer.File[]) || [];
+    const file = files[0];
+
+    let documentUrl = cloudinaryUrl;
+    let documentPublicId = publicId;
+
+    if (file) {
+      const uploaded = await uploadKycFile(file);
+      documentUrl = uploaded.secure_url;
+      documentPublicId = uploaded.public_id;
+    }
+
+    if (!documentUrl || !documentPublicId) {
+      return res.status(400).json({ message: "KYC document file is required" });
+    }
     
     const document = await KycService.uploadDocument(
       req.user.id,
@@ -31,8 +68,8 @@ export const uploadDocument = async (req: Request, res: Response, next: NextFunc
       req.user.emailVerified,
       req.user.phoneNumberVerified,
       type,
-      cloudinaryUrl,
-      publicId
+      documentUrl,
+      documentPublicId
     );
 
     res.status(201).json({ message: "Document uploaded successfully", document });
