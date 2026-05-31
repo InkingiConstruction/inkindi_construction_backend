@@ -54,7 +54,9 @@ exports.auth = (0, better_auth_1.betterAuth)({
         (0, plugins_1.emailOTP)({
             otpLength: 6,
             expiresIn: 300,
+            sendVerificationOnSignUp: true,
             async sendVerificationOTP({ email, otp, type }) {
+                console.log("Better Auth email OTP requested:", { email, type });
                 if (type === "email-verification") {
                     const template = (0, email_tempelates_js_1.emailVerificationTemplate)(otp);
                     await (0, resend_js_1.sendEmail)({ to: email, ...template });
