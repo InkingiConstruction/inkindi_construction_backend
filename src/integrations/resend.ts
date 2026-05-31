@@ -10,13 +10,26 @@ interface EmailOptions {
 }
 
 const sendEmail = async ({ to, subject, text, html }: EmailOptions) => {
-  await resend.emails.send({
+  const from = "onboarding@resend.dev";
+
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+
+  const { data, error } = await resend.emails.send({
     to,
-    from: `InkingiPro <${process.env.EMAIL_FROM}>`,
+    from: `InkingiPro <${from}>`,
     subject,
     text,
     html,
   });
+
+  if (error) {
+    console.error("Resend email error:", error);
+    throw new Error(error.message || "Failed to send email");
+  }
+
+  return data;
 };
 
 export default sendEmail;
