@@ -10,6 +10,6 @@ exports.default = (0, config_1.defineConfig)({
         path: "prisma/migrations",
     },
     datasource: {
-        url: process.env["DATABASE_URL"],
+        url: process.env["DATABASE_URL"] || "",
     },
 });

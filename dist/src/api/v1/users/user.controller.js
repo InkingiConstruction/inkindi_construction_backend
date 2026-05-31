@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteUser = exports.updateUser = exports.getUserById = exports.getUsers = exports.createUser = exports.getEngineers = void 0;
+exports.deleteUser = exports.updateUser = exports.getUserById = exports.getUsers = exports.createUser = exports.getSuppliers = exports.getSupervisors = exports.getEngineers = void 0;
 const client_1 = require("@prisma/client");
 const db_js_1 = __importDefault(require("../../../config/db.js"));
 const getId = (id) => Array.isArray(id) ? id[0] : id;
@@ -69,6 +69,42 @@ const getEngineers = async (_req, res) => {
     }
 };
 exports.getEngineers = getEngineers;
+const getUsersByRole = async (role, res) => {
+    const users = await db_js_1.default.user.findMany({
+        where: {
+            role,
+            banned: false,
+        },
+        select: {
+            ...selectUser,
+            kycDocuments: false,
+        },
+        orderBy: {
+            createdAt: "desc",
+        },
+    });
+    return res.json(users);
+};
+const getSupervisors = async (_req, res) => {
+    try {
+        return await getUsersByRole("supervisor", res);
+    }
+    catch (error) {
+        console.error("Get supervisors error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.getSupervisors = getSupervisors;
+const getSuppliers = async (_req, res) => {
+    try {
+        return await getUsersByRole("supplier", res);
+    }
+    catch (error) {
+        console.error("Get suppliers error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.getSuppliers = getSuppliers;
 const createUser = async (req, res) => {
     try {
         const { id, name, email, emailVerified, image, role, username, displayUsername, phoneNumber, phoneNumberVerified, fcmToken, notificationPrefs, } = req.body;

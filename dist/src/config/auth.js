@@ -8,6 +8,7 @@ const better_auth_1 = require("better-auth");
 const db_js_1 = __importDefault(require("./db.js"));
 const prisma_1 = require("better-auth/adapters/prisma");
 const plugins_1 = require("better-auth/plugins");
+const expo_1 = require("@better-auth/expo");
 const resend_js_1 = __importDefault(require("../integrations/resend.js"));
 const africastalking_js_1 = require("../integrations/africastalking.js");
 const email_tempelates_js_1 = require("../utils/email-tempelates.js");
@@ -41,6 +42,7 @@ exports.auth = (0, better_auth_1.betterAuth)({
         maxPasswordLength: 128,
     },
     plugins: [
+        (0, expo_1.expo)(),
         (0, plugins_1.username)(),
         (0, plugins_1.phoneNumber)({
             otpLength: 6,
@@ -81,6 +83,17 @@ exports.auth = (0, better_auth_1.betterAuth)({
         "http://127.0.0.1:5173",
         "http://localhost:8081",
         "http://192.168.1.171:8081",
+        "inkindiapp://",
+        "inkindiapp://*",
+        ...(process.env.NODE_ENV === "development"
+            ? [
+                "exp://",
+                "exp://**",
+                "exp://192.168.*.*:*/**",
+                "exp://10.*.*.*:*/**",
+                "exp://172.*.*.*:*/**",
+            ]
+            : []),
         "https://inkindi-construction-backend.onrender.com",
         ...envTrustedOrigins,
     ].filter(Boolean),

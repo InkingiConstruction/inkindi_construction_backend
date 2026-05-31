@@ -69,6 +69,42 @@ export const getEngineers = async (_req: Request, res: Response) => {
   }
 };
 
+const getUsersByRole = async (role: string, res: Response) => {
+  const users = await prisma.user.findMany({
+    where: {
+      role,
+      banned: false,
+    },
+    select: {
+      ...selectUser,
+      kycDocuments: false,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return res.json(users);
+};
+
+export const getSupervisors = async (_req: Request, res: Response) => {
+  try {
+    return await getUsersByRole("supervisor", res);
+  } catch (error) {
+    console.error("Get supervisors error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const getSuppliers = async (_req: Request, res: Response) => {
+  try {
+    return await getUsersByRole("supplier", res);
+  } catch (error) {
+    console.error("Get suppliers error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 export const createUser = async (req: Request, res: Response) => {
   try {
     const {

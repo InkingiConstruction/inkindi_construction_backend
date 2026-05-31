@@ -145,24 +145,36 @@ class ProjectService {
         }
         const uploaded = await uploadProjectFiles(files);
         const bodyArchitecturalPlans = parseJsonField(architecturalPlans);
-        return await db_js_1.default.project.create({
-            data: {
-                name,
-                description,
-                status,
-                budget,
-                currency,
-                address,
-                gpsBoundary: parseJsonField(gpsBoundary),
-                sitePhotos: uploaded.sitePhotos,
-                architecturalPlans: uploaded.architecturalPlans.length > 0
-                    ? uploaded.architecturalPlans
-                    : bodyArchitecturalPlans || [],
-                startDate: startDate ? new Date(startDate) : undefined,
-                endDate: endDate ? new Date(endDate) : undefined,
-                clientId: userId,
-                engineerId: engineerId || undefined,
-            },
+        return await db_js_1.default.$transaction(async (tx) => {
+            const project = await tx.project.create({
+                data: {
+                    name,
+                    description,
+                    status,
+                    budget,
+                    currency,
+                    address,
+                    gpsBoundary: parseJsonField(gpsBoundary),
+                    sitePhotos: uploaded.sitePhotos,
+                    architecturalPlans: uploaded.architecturalPlans.length > 0
+                        ? uploaded.architecturalPlans
+                        : bodyArchitecturalPlans || [],
+                    startDate: startDate ? new Date(startDate) : undefined,
+                    endDate: endDate ? new Date(endDate) : undefined,
+                    clientId: userId,
+                    engineerId: engineerId || undefined,
+                },
+            });
+            await tx.escrowAccount.create({
+                data: {
+                    projectId: project.id,
+                    currency: currency || "RWF",
+                },
+            });
+            return await tx.project.findUniqueOrThrow({
+                where: { id: project.id },
+                include: projectListInclude,
+            });
         });
     }
     /**

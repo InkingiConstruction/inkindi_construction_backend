@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requiredAuth = void 0;
-const auth_1 = require("../../../lib/auth");
+const auth_1 = require("../../../config/auth");
 const node_1 = require("better-auth/node");
 const auth_security_middleware_1 = require("./auth-security.middleware");
 const requiredAuth = async (req, res, next) => {
