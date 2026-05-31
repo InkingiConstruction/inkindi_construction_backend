@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteUser = exports.updateUser = exports.getUserById = exports.getUsers = exports.createUser = exports.getSuppliers = exports.getSupervisors = exports.getEngineers = void 0;
+exports.deleteUser = exports.updateUser = exports.getUserById = exports.getUsers = exports.createUser = exports.getSuppliers = exports.getSupervisors = exports.getEngineers = exports.updateCurrentUserRole = exports.updateCurrentUser = exports.getCurrentUser = void 0;
 const client_1 = require("@prisma/client");
 const db_js_1 = __importDefault(require("../../../config/db.js"));
 const getId = (id) => Array.isArray(id) ? id[0] : id;
@@ -21,6 +21,7 @@ const parseJson = (value) => {
 };
 const isKycStatus = (value) => typeof value === "string" &&
     Object.values(client_1.KycStatus).includes(value);
+const allowedSelfRoles = ["client", "engineer", "supervisor", "supplier"];
 const selectUser = {
     id: true,
     name: true,
@@ -46,6 +47,85 @@ const selectUser = {
     updatedAt: true,
     kycDocuments: true,
 };
+const getCurrentUser = async (req, res) => {
+    try {
+        const user = await db_js_1.default.user.findUnique({
+            where: { id: req.user.id },
+            select: selectUser,
+        });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        return res.json(user);
+    }
+    catch (error) {
+        console.error("Get current user error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.getCurrentUser = getCurrentUser;
+const updateCurrentUser = async (req, res) => {
+    try {
+        const { name, image, role, username, displayUsername, phoneNumber, fcmToken, notificationPrefs, } = req.body;
+        const nextRole = typeof role === "string" ? role.trim().toLowerCase() : undefined;
+        if (nextRole && !allowedSelfRoles.includes(nextRole)) {
+            return res.status(400).json({ message: "Invalid role" });
+        }
+        const user = await db_js_1.default.user.update({
+            where: { id: req.user.id },
+            data: {
+                name,
+                image,
+                role: nextRole,
+                username,
+                displayUsername,
+                phoneNumber,
+                fcmToken,
+                notificationPrefs: notificationPrefs !== undefined
+                    ? parseJson(notificationPrefs) || {}
+                    : undefined,
+            },
+            select: selectUser,
+        });
+        return res.json({
+            message: "User updated successfully",
+            user,
+        });
+    }
+    catch (error) {
+        console.error("Update current user error:", error);
+        if (error instanceof client_1.Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002") {
+            return res.status(409).json({ message: "Phone number or username already exists" });
+        }
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.updateCurrentUser = updateCurrentUser;
+const updateCurrentUserRole = async (req, res) => {
+    try {
+        const role = typeof req.body.role === "string"
+            ? req.body.role.trim().toLowerCase()
+            : undefined;
+        if (!role || !allowedSelfRoles.includes(role)) {
+            return res.status(400).json({ message: "Invalid role" });
+        }
+        const user = await db_js_1.default.user.update({
+            where: { id: req.user.id },
+            data: { role },
+            select: selectUser,
+        });
+        return res.json({
+            message: "Role updated successfully",
+            user,
+        });
+    }
+    catch (error) {
+        console.error("Update current user role error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.updateCurrentUserRole = updateCurrentUserRole;
 const getEngineers = async (_req, res) => {
     try {
         const engineers = await db_js_1.default.user.findMany({
