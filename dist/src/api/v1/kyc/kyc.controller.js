@@ -47,7 +47,7 @@ const uploadDocument = async (req, res, next) => {
             return res.status(400).json({ message: "KYC document file is required" });
         }
         const uploaded = await uploadKycFile(file);
-        const document = await kyc_service_1.KycService.uploadDocument(req.user.id, req.user.role, req.user.emailVerified, req.user.phoneNumberVerified, type, uploaded.secure_url, uploaded.public_id);
+        const document = await kyc_service_1.KycService.uploadDocument(req.user.id, req.user.role, req.user.emailVerified, Boolean(req.user.phoneNumberVerified), type, uploaded.secure_url, uploaded.public_id);
         res.status(201).json({ message: "Document uploaded successfully", document });
     }
     catch (error) {

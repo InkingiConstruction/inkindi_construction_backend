@@ -147,6 +147,7 @@ model User {
   id                  String    @id
   name                String
   email               String    @unique
+  passwordHash        String?
   emailVerified       Boolean   @default(false)
   image               String?
   createdAt           DateTime  @default(now())
@@ -167,8 +168,7 @@ model User {
   lastLoginAt         DateTime?
   notificationPrefs   Json      @default("{}")
 
-  sessions             Session[]
-  accounts             Account[]
+  authOtps             AuthOtp[]
   kycDocuments         KycDocument[]
   clientProjects       Project[]             @relation("ClientProjects")
   engineerProjects     Project[]             @relation("EngineerProjects")
@@ -193,52 +193,22 @@ model User {
   @@map("user")
 }
 
-model Session {
-  id             String   @id
-  expiresAt      DateTime
-  token          String   @unique
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  ipAddress      String?
-  userAgent      String?
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  impersonatedBy String?
+model AuthOtp {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String
+  codeHash  String
+  type      String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@index([email, type])
   @@index([userId])
-  @@map("session")
-}
-
-model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  @@index([userId])
-  @@map("account")
-}
-
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([identifier])
-  @@map("verification")
+  @@map("auth_otp")
 }
 
 model KycDocument {

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { KycStatus, Prisma } from "@prisma/client";
 import prisma from "../../../config/db.js";
+import { hashPassword } from "../../../utils/password.js";
 
 const getId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -223,6 +224,7 @@ export const createUser = async (req: Request, res: Response) => {
       phoneNumberVerified,
       fcmToken,
       notificationPrefs,
+      password,
     } = req.body;
 
     if (!id || !name || !email) {
@@ -245,6 +247,7 @@ export const createUser = async (req: Request, res: Response) => {
             ? Boolean(phoneNumberVerified)
             : undefined,
         fcmToken,
+        passwordHash: password ? await hashPassword(String(password)) : undefined,
         notificationPrefs: parseJson(notificationPrefs) || {},
       },
       select: selectUser,
@@ -298,8 +301,6 @@ export const getUserById = async (req: Request, res: Response) => {
       where: { id },
       select: {
         ...selectUser,
-        accounts: true,
-        sessions: true,
         apiKeys: true,
       },
     });
