@@ -60,7 +60,7 @@ export const uploadDocument = async (req: Request, res: Response, next: NextFunc
       req.user.id,
       req.user.role,
       req.user.emailVerified,
-      req.user.phoneNumberVerified,
+      Boolean(req.user.phoneNumberVerified),
       type,
       uploaded.secure_url,
       uploaded.public_id

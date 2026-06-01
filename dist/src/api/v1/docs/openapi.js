@@ -16,39 +16,6 @@ const modelRoutes = [
         multipart: true,
     },
     {
-        base: "/sessions",
-        tag: "Sessions",
-        name: "Session",
-        roles: {
-            create: ["admin"],
-            read: ["admin"],
-            update: ["admin"],
-            delete: ["admin"],
-        },
-    },
-    {
-        base: "/accounts",
-        tag: "Accounts",
-        name: "Account",
-        roles: {
-            create: ["admin"],
-            read: ["admin"],
-            update: ["admin"],
-            delete: ["admin"],
-        },
-    },
-    {
-        base: "/verifications",
-        tag: "Verifications",
-        name: "Verification",
-        roles: {
-            create: ["admin"],
-            read: ["admin"],
-            update: ["admin"],
-            delete: ["admin"],
-        },
-    },
-    {
         base: "/projects",
         tag: "Projects",
         name: "Project",
@@ -290,11 +257,10 @@ const modelRoutes = [
     },
 ];
 const authRoutes = [
-    ["get", "/auth/ok", "Check Better Auth status"],
     [
         "post",
-        "/auth/sign-up/email",
-        "Sign up with email and password",
+        "/auth/register",
+        "Register with email and password",
         {
             email: "client@example.com",
             password: "SecurePassword123!",
@@ -305,184 +271,32 @@ const authRoutes = [
     ],
     [
         "post",
-        "/auth/sign-in/email",
-        "Sign in with email and password",
+        "/auth/login",
+        "Login with email and password",
         {
             email: "client@example.com",
             password: "SecurePassword123!"
         }
     ],
-    ["post", "/auth/sign-in/social", "Start social sign-in flow"],
-    ["get", "/auth/callback/{id}", "OAuth callback route"],
-    ["post", "/auth/sign-out", "Sign out current user"],
-    ["get", "/auth/get-session", "Get current session"],
-    ["post", "/auth/get-session", "Get current session"],
-    ["get", "/auth/list-sessions", "List current user sessions"],
-    ["post", "/auth/revoke-session", "Revoke one session", { id: "session-id" }],
-    ["post", "/auth/revoke-sessions", "Revoke all current user sessions"],
-    ["post", "/auth/revoke-other-sessions", "Revoke other sessions"],
-    ["post", "/auth/update-session", "Update current session data"],
-    ["post", "/auth/update-user", "Update current user", { name: "Jean Bosco Updated" }],
     [
         "post",
-        "/auth/change-password",
-        "Change current user password",
+        "/auth/verify-email",
+        "Verify email OTP",
         {
-            currentPassword: "SecurePassword123!",
-            newPassword: "NewSecurePassword123!"
-        }
-    ],
-    [
-        "post",
-        "/auth/change-email",
-        "Change current user email",
-        {
-            newEmail: "newemail@example.com"
-        }
-    ],
-    ["post", "/auth/delete-user", "Request or delete current user"],
-    ["get", "/auth/delete-user/callback", "Delete user callback route"],
-    [
-        "post",
-        "/auth/request-password-reset",
-        "Request password reset email",
-        {
-            email: "client@example.com"
-        }
-    ],
-    ["get", "/auth/reset-password/{token}", "Password reset callback route"],
-    [
-        "post",
-        "/auth/reset-password",
-        "Reset password",
-        {
-            password: "NewSecurePassword123!",
-            token: "reset-token-received-in-email"
-        }
-    ],
-    ["post", "/auth/verify-password", "Verify current password", { password: "SecurePassword123!" }],
-    ["post", "/auth/send-verification-email", "Send verification email"],
-    ["get", "/auth/verify-email", "Verify email address"],
-    ["get", "/auth/list-accounts", "List linked accounts"],
-    ["post", "/auth/link-social", "Link a social account"],
-    ["post", "/auth/unlink-account", "Unlink an account"],
-    ["get", "/auth/get-access-token", "Get account access token"],
-    ["post", "/auth/refresh-token", "Refresh account token"],
-    ["get", "/auth/account-info", "Get linked account info"],
-    ["get", "/auth/error", "Better Auth error route"],
-    [
-        "post",
-        "/auth/sign-in/username",
-        "Sign in with username and password",
-        {
-            username: "jeanbosco",
-            password: "SecurePassword123!"
-        }
-    ],
-    ["post", "/auth/is-username-available", "Check username availability", { username: "newusername" }],
-    [
-        "post",
-        "/auth/sign-in/phone-number",
-        "Sign in with phone number",
-        {
-            phoneNumber: "+250788123456",
-            password: "SecurePassword123!"
-        }
-    ],
-    [
-        "post",
-        "/auth/phone-number/send-otp",
-        "Send phone verification OTP",
-        {
-            phoneNumber: "+250788123456"
-        }
-    ],
-    [
-        "post",
-        "/auth/phone-number/verify",
-        "Verify phone number OTP",
-        {
-            phoneNumber: "+250788123456",
+            email: "client@example.com",
             otp: "123456"
         }
     ],
     [
         "post",
-        "/auth/phone-number/request-password-reset",
-        "Request phone password reset",
+        "/auth/resend-otp",
+        "Resend email OTP",
         {
-            phoneNumber: "+250788123456"
+            email: "client@example.com"
         }
     ],
-    [
-        "post",
-        "/auth/phone-number/reset-password",
-        "Reset password with OTP",
-        {
-            phoneNumber: "+250788123456",
-            otp: "123456",
-            password: "NewSecurePassword123!"
-        }
-    ],
-    [
-        "post",
-        "/auth/admin/set-role",
-        "Set a user's role",
-        {
-            userId: "user-uuid",
-            role: "engineer"
-        }
-    ],
-    ["get", "/auth/admin/get-user", "Get one user"],
-    [
-        "post",
-        "/auth/admin/create-user",
-        "Create a user",
-        {
-            email: "engineer@example.com",
-            password: "SecurePassword123!",
-            name: "Eric Kabera",
-            role: "engineer",
-            phoneNumber: "+250788987654"
-        }
-    ],
-    [
-        "post",
-        "/auth/admin/update-user",
-        "Update a user",
-        {
-            userId: "user-uuid",
-            name: "Eric Kabera Updated"
-        }
-    ],
-    ["get", "/auth/admin/list-users", "List users"],
-    ["post", "/auth/admin/list-user-sessions", "List sessions for a user", { userId: "user-uuid" }],
-    [
-        "post",
-        "/auth/admin/ban-user",
-        "Ban a user",
-        {
-            userId: "user-uuid",
-            banReason: "Inappropriate behavior",
-            durationSeconds: 86400
-        }
-    ],
-    ["post", "/auth/admin/unban-user", "Unban a user", { userId: "user-uuid" }],
-    ["post", "/auth/admin/impersonate-user", "Impersonate a user", { userId: "user-uuid" }],
-    ["post", "/auth/admin/stop-impersonating", "Stop impersonating"],
-    ["post", "/auth/admin/revoke-user-session", "Revoke one user session", { sessionId: "session-uuid" }],
-    ["post", "/auth/admin/revoke-user-sessions", "Revoke all user sessions", { userId: "user-uuid" }],
-    ["post", "/auth/admin/remove-user", "Remove a user", { userId: "user-uuid" }],
-    [
-        "post",
-        "/auth/admin/set-user-password",
-        "Set a user's password",
-        {
-            userId: "user-uuid",
-            password: "AdminSetNewPassword123!"
-        }
-    ],
-    ["post", "/auth/admin/has-permission", "Check admin permissions", { permission: "admin.all" }],
+    ["get", "/auth/me", "Get current authenticated user"],
+    ["post", "/auth/logout", "Logout current user"],
 ].map((item) => {
     const [method, path, summary, body] = item;
     return {
@@ -786,11 +600,6 @@ exports.openApiDocument = {
     ].map((name) => ({ name })),
     components: {
         securitySchemes: {
-            cookieAuth: {
-                type: "apiKey",
-                in: "cookie",
-                name: "better-auth.session_token",
-            },
             bearerAuth: {
                 type: "http",
                 scheme: "bearer",

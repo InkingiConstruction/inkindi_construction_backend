@@ -5,7 +5,7 @@
  * ============================================================================
  * FILE NAME        : app.ts
  * WHAT THIS FILE DOES : Main application server configuration and global middleware registry
- * HOW IT DOES IT      : Instantiates Express, configures Gzip compression, request logs, CORS, Better Auth, and API routing
+ * HOW IT DOES IT      : Instantiates Express, configures Gzip compression, request logs, CORS, and API routing
  * DATA SOURCE         : Client HTTP Requests
  * DATA DESTINATION    : HTTP Response streams
  * PRINCIPLE APPLIED   : SOLID (Centralized bootstrapping layer)
@@ -19,8 +19,6 @@ require("dotenv/config");
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const compression_1 = __importDefault(require("compression"));
-const node_1 = require("better-auth/node");
-const auth_1 = require("./config/auth");
 const v1_1 = __importDefault(require("./api/v1"));
 const logger_middleware_1 = require("./common/middleware/logger.middleware");
 const app = (0, express_1.default)();
@@ -87,7 +85,6 @@ app.use((0, cors_1.default)({
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 }));
-app.all("/api/v1/auth/*splat", (0, node_1.toNodeHandler)(auth_1.auth));
 app.use(express_1.default.json());
 // 5. Root Entry Diagnostics
 app.get("/", (_req, res) => {

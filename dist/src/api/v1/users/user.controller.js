@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteUser = exports.updateUser = exports.getUserById = exports.getUsers = exports.createUser = exports.getSuppliers = exports.getSupervisors = exports.getEngineers = exports.updateCurrentUserRole = exports.updateCurrentUser = exports.getCurrentUser = void 0;
 const client_1 = require("@prisma/client");
 const db_js_1 = __importDefault(require("../../../config/db.js"));
+const password_js_1 = require("../../../utils/password.js");
 const getId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJson = (value) => {
     if (!value)
@@ -187,7 +188,7 @@ const getSuppliers = async (_req, res) => {
 exports.getSuppliers = getSuppliers;
 const createUser = async (req, res) => {
     try {
-        const { id, name, email, emailVerified, image, role, username, displayUsername, phoneNumber, phoneNumberVerified, fcmToken, notificationPrefs, } = req.body;
+        const { id, name, email, emailVerified, image, role, username, displayUsername, phoneNumber, phoneNumberVerified, fcmToken, notificationPrefs, password, } = req.body;
         if (!id || !name || !email) {
             return res.status(400).json({ message: "id, name and email are required" });
         }
@@ -206,6 +207,7 @@ const createUser = async (req, res) => {
                     ? Boolean(phoneNumberVerified)
                     : undefined,
                 fcmToken,
+                passwordHash: password ? await (0, password_js_1.hashPassword)(String(password)) : undefined,
                 notificationPrefs: parseJson(notificationPrefs) || {},
             },
             select: selectUser,
@@ -254,8 +256,6 @@ const getUserById = async (req, res) => {
             where: { id },
             select: {
                 ...selectUser,
-                accounts: true,
-                sessions: true,
                 apiKeys: true,
             },
         });
