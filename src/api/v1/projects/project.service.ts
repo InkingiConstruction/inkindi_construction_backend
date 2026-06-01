@@ -230,7 +230,7 @@ export class ProjectService {
       });
     } else if (role === "supervisor" || role === "supplier") {
       return await prisma.project.findMany({
-        where: { projectMembers: { some: { userId } } },
+        where: { projectMembers: { some: { userId, status: "accepted" } } },
         include: projectListInclude,
         orderBy: { createdAt: "desc" },
       });
