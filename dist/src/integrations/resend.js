@@ -1,18 +1,43 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendEmail = void 0;
-const resend_1 = require("resend");
-const resend = new resend_1.Resend(process.env.RESEND_API_KEY);
 const sendEmail = async ({ to, subject, html }) => {
     try {
-        const { error } = await resend.emails.send({
-            from: "InkingiPro <onboarding@resend.dev>",
-            to,
-            subject,
-            html,
+        const apiKey = process.env.BREVO_API_KEY;
+        const senderEmail = process.env.BREVO_SENDER_EMAIL;
+        const senderName = process.env.BREVO_SENDER_NAME || "InkingiPro";
+        if (!apiKey) {
+            console.error("Email error: BREVO_API_KEY is not configured");
+            return;
+        }
+        if (!senderEmail) {
+            console.error("Email error: BREVO_SENDER_EMAIL is not configured");
+            return;
+        }
+        const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: {
+                accept: "application/json",
+                "api-key": apiKey,
+                "content-type": "application/json",
+            },
+            body: JSON.stringify({
+                sender: {
+                    name: senderName,
+                    email: senderEmail,
+                },
+                to: [{ email: to }],
+                subject,
+                htmlContent: html,
+            }),
         });
-        if (error) {
-            console.error("Email error:", error);
+        const responseText = await response.text();
+        const responseBody = responseText ? JSON.parse(responseText) : null;
+        if (!response.ok) {
+            console.error("Brevo email error:", {
+                status: response.status,
+                response: responseBody,
+            });
             return;
         }
         console.log("Email sent to:", to);
