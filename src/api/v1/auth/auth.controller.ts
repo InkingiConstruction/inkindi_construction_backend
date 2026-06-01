@@ -4,7 +4,10 @@ import prisma from "../../../config/db.js";
 import { createMobileJwt } from "../../../utils/mobile-jwt.js";
 import { hashOtp, hashPassword, verifyPassword } from "../../../utils/password.js";
 import { sendEmail } from "../../../integrations/resend.js";
-import { emailVerificationTemplate } from "../../../utils/email-tempelates.js";
+import {
+  emailVerificationTemplate,
+  passwordResetTemplate,
+} from "../../../utils/email-tempelates.js";
 
 const allowedRoles = ["client", "engineer", "supervisor", "supplier", "admin"];
 
@@ -50,6 +53,23 @@ const sendVerificationOtp = async (user: { id: string; email: string }) => {
   });
 
   const template = emailVerificationTemplate(otp);
+  await sendEmail({ to: user.email, ...template });
+};
+
+const sendPasswordResetOtp = async (user: { id: string; email: string }) => {
+  const otp = generateOtp();
+
+  await prisma.authOtp.create({
+    data: {
+      userId: user.id,
+      email: user.email,
+      codeHash: hashOtp(otp),
+      type: "password-reset",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    },
+  });
+
+  const template = passwordResetTemplate(otp);
   await sendEmail({ to: user.email, ...template });
 };
 
@@ -233,6 +253,82 @@ export const resendOtp = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Resend OTP error:", error);
     return res.status(500).json({ message: "Failed to send OTP" });
+  }
+};
+
+export const requestPasswordReset = async (req: Request, res: Response) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true },
+    });
+
+    if (user) {
+      await sendPasswordResetOtp(user);
+    }
+
+    return res.json({ message: "Password reset OTP sent successfully" });
+  } catch (error) {
+    console.error("Request password reset error:", error);
+    return res.status(500).json({ message: "Failed to send password reset OTP" });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const otp = String(req.body.otp || "").trim();
+    const password = String(req.body.password || req.body.newPassword || "");
+
+    if (!email || !otp || !password) {
+      return res.status(400).json({ message: "Email, OTP and password are required" });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ message: "Password must be at least 8 characters" });
+    }
+
+    const verification = await prisma.authOtp.findFirst({
+      where: {
+        email,
+        type: "password-reset",
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!verification || verification.codeHash !== hashOtp(otp)) {
+      if (verification) {
+        await prisma.authOtp.update({
+          where: { id: verification.id },
+          data: { attempts: { increment: 1 } },
+        });
+      }
+
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    await prisma.user.update({
+      where: { email },
+      data: { passwordHash: await hashPassword(password) },
+    });
+
+    await prisma.authOtp.update({
+      where: { id: verification.id },
+      data: { usedAt: new Date() },
+    });
+
+    return res.json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    return res.status(500).json({ message: "Failed to reset password" });
   }
 };
 

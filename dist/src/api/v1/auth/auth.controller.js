@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logout = exports.changePassword = exports.getMe = exports.resendOtp = exports.verifyEmail = exports.login = exports.register = void 0;
+exports.logout = exports.changePassword = exports.getMe = exports.resetPassword = exports.requestPasswordReset = exports.resendOtp = exports.verifyEmail = exports.login = exports.register = void 0;
 const crypto_1 = require("crypto");
 const db_js_1 = __importDefault(require("../../../config/db.js"));
 const mobile_jwt_js_1 = require("../../../utils/mobile-jwt.js");
@@ -46,6 +46,20 @@ const sendVerificationOtp = async (user) => {
         },
     });
     const template = (0, email_tempelates_js_1.emailVerificationTemplate)(otp);
+    await (0, resend_js_1.sendEmail)({ to: user.email, ...template });
+};
+const sendPasswordResetOtp = async (user) => {
+    const otp = generateOtp();
+    await db_js_1.default.authOtp.create({
+        data: {
+            userId: user.id,
+            email: user.email,
+            codeHash: (0, password_js_1.hashOtp)(otp),
+            type: "password-reset",
+            expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        },
+    });
+    const template = (0, email_tempelates_js_1.passwordResetTemplate)(otp);
     await (0, resend_js_1.sendEmail)({ to: user.email, ...template });
 };
 const register = async (req, res) => {
@@ -206,6 +220,72 @@ const resendOtp = async (req, res) => {
     }
 };
 exports.resendOtp = resendOtp;
+const requestPasswordReset = async (req, res) => {
+    try {
+        const email = String(req.body.email || "").trim().toLowerCase();
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+        const user = await db_js_1.default.user.findUnique({
+            where: { email },
+            select: { id: true, email: true },
+        });
+        if (user) {
+            await sendPasswordResetOtp(user);
+        }
+        return res.json({ message: "Password reset OTP sent successfully" });
+    }
+    catch (error) {
+        console.error("Request password reset error:", error);
+        return res.status(500).json({ message: "Failed to send password reset OTP" });
+    }
+};
+exports.requestPasswordReset = requestPasswordReset;
+const resetPassword = async (req, res) => {
+    try {
+        const email = String(req.body.email || "").trim().toLowerCase();
+        const otp = String(req.body.otp || "").trim();
+        const password = String(req.body.password || req.body.newPassword || "");
+        if (!email || !otp || !password) {
+            return res.status(400).json({ message: "Email, OTP and password are required" });
+        }
+        if (password.length < 8) {
+            return res.status(400).json({ message: "Password must be at least 8 characters" });
+        }
+        const verification = await db_js_1.default.authOtp.findFirst({
+            where: {
+                email,
+                type: "password-reset",
+                usedAt: null,
+                expiresAt: { gt: new Date() },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+        if (!verification || verification.codeHash !== (0, password_js_1.hashOtp)(otp)) {
+            if (verification) {
+                await db_js_1.default.authOtp.update({
+                    where: { id: verification.id },
+                    data: { attempts: { increment: 1 } },
+                });
+            }
+            return res.status(400).json({ message: "Invalid or expired OTP" });
+        }
+        await db_js_1.default.user.update({
+            where: { email },
+            data: { passwordHash: await (0, password_js_1.hashPassword)(password) },
+        });
+        await db_js_1.default.authOtp.update({
+            where: { id: verification.id },
+            data: { usedAt: new Date() },
+        });
+        return res.json({ message: "Password reset successfully" });
+    }
+    catch (error) {
+        console.error("Reset password error:", error);
+        return res.status(500).json({ message: "Failed to reset password" });
+    }
+};
+exports.resetPassword = resetPassword;
 const getMe = async (req, res) => {
     try {
         const user = await db_js_1.default.user.findUnique({

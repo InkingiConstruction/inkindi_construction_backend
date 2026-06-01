@@ -8,6 +8,8 @@ router.post("/register", auth_controller_js_1.register);
 router.post("/login", auth_controller_js_1.login);
 router.post("/verify-email", auth_controller_js_1.verifyEmail);
 router.post("/resend-otp", auth_controller_js_1.resendOtp);
+router.post("/request-password-reset", auth_controller_js_1.requestPasswordReset);
+router.post("/reset-password", auth_controller_js_1.resetPassword);
 router.get("/me", auth_middleware_js_1.requiredAuth, auth_controller_js_1.getMe);
 router.post("/change-password", auth_middleware_js_1.requiredAuth, auth_controller_js_1.changePassword);
 router.post("/logout", auth_middleware_js_1.requiredAuth, auth_controller_js_1.logout);
