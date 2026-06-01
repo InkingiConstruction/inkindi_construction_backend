@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { auth } from "../../../config/auth.js";
 import prisma from "../../../config/db.js";
+import { createMobileJwt } from "../../../utils/mobile-jwt.js";
 
 const allowedRoles = ["client", "engineer", "supervisor", "supplier"];
 
@@ -78,7 +79,7 @@ export const registerMobileUser = async (req: Request, res: Response) => {
 
     return res.status(201).json({
       message: "Registered successfully",
-      token: result.token,
+      token: createMobileJwt({ sub: user.id, role: user.role }),
       user,
     });
   } catch (error: any) {
@@ -111,7 +112,7 @@ export const loginMobileUser = async (req: Request, res: Response) => {
 
     return res.json({
       message: "Logged in successfully",
-      token: result.token,
+      token: user ? createMobileJwt({ sub: user.id, role: user.role }) : null,
       user,
     });
   } catch (error: any) {

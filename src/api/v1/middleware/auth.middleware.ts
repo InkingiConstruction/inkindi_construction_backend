@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import { auth } from "../../../config/auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { authenticatedUserRateLimit } from "./auth-security.middleware";
+import prisma from "../../../config/db.js";
+import { verifyMobileJwt } from "../../../utils/mobile-jwt.js";
 
 export const requiredAuth = async (
   req: Request,
@@ -14,18 +16,23 @@ export const requiredAuth = async (
       : undefined;
 
     if (bearerToken) {
-      const session = await auth.api.getSession({
-        headers: new Headers({
-          authorization: `Bearer ${bearerToken}`,
-        }),
+      const payload = verifyMobileJwt(bearerToken);
+
+      if (!payload) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: payload.sub },
       });
 
-      if (session) {
-        req.session = session;
-        req.user = session.user;
-        req.role = session.user.role;
-        return authenticatedUserRateLimit(req, res, next);
+      if (!user || user.banned) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
+
+      req.user = user as typeof req.user;
+      req.role = user.role;
+      return authenticatedUserRateLimit(req, res, next);
     }
 
     const session = await auth.api.getSession({

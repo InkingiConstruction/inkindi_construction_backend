@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getMobileMe = exports.verifyMobileEmail = exports.loginMobileUser = exports.registerMobileUser = void 0;
 const auth_js_1 = require("../../../config/auth.js");
 const db_js_1 = __importDefault(require("../../../config/db.js"));
+const mobile_jwt_js_1 = require("../../../utils/mobile-jwt.js");
 const allowedRoles = ["client", "engineer", "supervisor", "supplier"];
 const authHeaders = () => new Headers({
     origin: "inkindiapp://",
@@ -71,7 +72,7 @@ const registerMobileUser = async (req, res) => {
         });
         return res.status(201).json({
             message: "Registered successfully",
-            token: result.token,
+            token: (0, mobile_jwt_js_1.createMobileJwt)({ sub: user.id, role: user.role }),
             user,
         });
     }
@@ -101,7 +102,7 @@ const loginMobileUser = async (req, res) => {
         const user = await getMobileUser(result.user.id);
         return res.json({
             message: "Logged in successfully",
-            token: result.token,
+            token: user ? (0, mobile_jwt_js_1.createMobileJwt)({ sub: user.id, role: user.role }) : null,
             user,
         });
     }
