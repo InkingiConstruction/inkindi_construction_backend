@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import prisma from "./db.js";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { admin, phoneNumber, username, emailOTP } from "better-auth/plugins";
+import { admin, bearer, phoneNumber, username, emailOTP } from "better-auth/plugins";
 import { expo } from "@better-auth/expo";
 import { sendEmail } from "../integrations/resend.js";
 import { sendSMS } from "../integrations/africastalking.js";
@@ -43,6 +43,7 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
   },
   plugins: [
+    bearer(),
     expo(),
     username(),
     phoneNumber({

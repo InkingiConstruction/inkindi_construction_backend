@@ -6,6 +6,22 @@ const node_1 = require("better-auth/node");
 const auth_security_middleware_1 = require("./auth-security.middleware");
 const requiredAuth = async (req, res, next) => {
     try {
+        const bearerToken = req.headers.authorization?.startsWith("Bearer ")
+            ? req.headers.authorization.slice("Bearer ".length).trim()
+            : undefined;
+        if (bearerToken) {
+            const session = await auth_1.auth.api.getSession({
+                headers: new Headers({
+                    authorization: `Bearer ${bearerToken}`,
+                }),
+            });
+            if (session) {
+                req.session = session;
+                req.user = session.user;
+                req.role = session.user.role;
+                return (0, auth_security_middleware_1.authenticatedUserRateLimit)(req, res, next);
+            }
+        }
         const session = await auth_1.auth.api.getSession({
             headers: (0, node_1.fromNodeHeaders)(req.headers),
         });

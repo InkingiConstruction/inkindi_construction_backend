@@ -9,6 +9,25 @@ export const requiredAuth = async (
   next: NextFunction,
 ) => {
   try {
+    const bearerToken = req.headers.authorization?.startsWith("Bearer ")
+      ? req.headers.authorization.slice("Bearer ".length).trim()
+      : undefined;
+
+    if (bearerToken) {
+      const session = await auth.api.getSession({
+        headers: new Headers({
+          authorization: `Bearer ${bearerToken}`,
+        }),
+      });
+
+      if (session) {
+        req.session = session;
+        req.user = session.user;
+        req.role = session.user.role;
+        return authenticatedUserRateLimit(req, res, next);
+      }
+    }
+
     const session = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
     });

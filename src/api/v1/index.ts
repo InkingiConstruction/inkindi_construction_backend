@@ -37,10 +37,12 @@ import emailTemplateRoutes from "./notifications/email-template.route";
 import systemSettingRoutes from "./admin/system-setting.route";
 import auditLogRoutes from "./admin/audit-log.route";
 import activityLogRoutes from "./admin/activity-log.route";
+import mobileAuthRoutes from "./mobile/mobile-auth.route";
 
 const router = Router();
 
 router.use("/", swaggerRoutes);
+router.use("/mobile-auth", mobileAuthRoutes);
 
 router.use("/sessions", sessionRoutes);
 router.use("/verifications", verificationRoutes);

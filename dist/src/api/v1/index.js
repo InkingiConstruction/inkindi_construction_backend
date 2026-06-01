@@ -31,8 +31,10 @@ const email_template_route_1 = __importDefault(require("./notifications/email-te
 const system_setting_route_1 = __importDefault(require("./admin/system-setting.route"));
 const audit_log_route_1 = __importDefault(require("./admin/audit-log.route"));
 const activity_log_route_1 = __importDefault(require("./admin/activity-log.route"));
+const mobile_auth_route_1 = __importDefault(require("./mobile/mobile-auth.route"));
 const router = (0, express_1.Router)();
 router.use("/", swagger_route_1.default);
+router.use("/mobile-auth", mobile_auth_route_1.default);
 router.use("/sessions", session_route_1.default);
 router.use("/verifications", verification_route_1.default);
 router.use("/api-keys", api_key_route_1.default);

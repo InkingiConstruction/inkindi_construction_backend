@@ -42,6 +42,7 @@ exports.auth = (0, better_auth_1.betterAuth)({
         maxPasswordLength: 128,
     },
     plugins: [
+        (0, plugins_1.bearer)(),
         (0, expo_1.expo)(),
         (0, plugins_1.username)(),
         (0, plugins_1.phoneNumber)({
