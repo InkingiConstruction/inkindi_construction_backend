@@ -28,13 +28,13 @@ router.get(
 router.post(
   "/:id/accept",
   requiredAuth,
-  requireRole("engineer", "admin"),
+  requireRole("engineer", "supervisor", "admin"),
   acceptProjectMember,
 );
 router.post(
   "/:id/reject",
   requiredAuth,
-  requireRole("engineer", "admin"),
+  requireRole("engineer", "supervisor", "admin"),
   rejectProjectMember,
 );
 router.get(

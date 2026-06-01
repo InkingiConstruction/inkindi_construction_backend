@@ -319,7 +319,7 @@ export const acceptProjectMember = async (req: Request, res: Response) => {
     if (assignment.userId !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({
         message:
-          "Only the invited engineer or admin can accept this assignment",
+          "Only the invited project member or admin can accept this assignment",
       });
     }
 
@@ -356,11 +356,13 @@ export const acceptProjectMember = async (req: Request, res: Response) => {
           where: { id: updated.projectId },
           data: { engineerId: updated.userId },
         });
+      }
 
+      if (updated.role === "engineer" || updated.role === "supervisor") {
         await tx.projectMember.updateMany({
           where: {
             projectId: updated.projectId,
-            role: "engineer",
+            role: updated.role,
             status: "pending",
             NOT: { id: updated.id },
           },
@@ -403,7 +405,7 @@ export const rejectProjectMember = async (req: Request, res: Response) => {
     if (assignment.userId !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({
         message:
-          "Only the invited engineer or admin can reject this assignment",
+          "Only the invited project member or admin can reject this assignment",
       });
     }
 
