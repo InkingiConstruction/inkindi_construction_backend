@@ -35,6 +35,7 @@ import emailTemplateRoutes from "./notifications/email-template.route";
 import systemSettingRoutes from "./admin/system-setting.route";
 import auditLogRoutes from "./admin/audit-log.route";
 import activityLogRoutes from "./admin/activity-log.route";
+import twilioTestRoutes from "./twilio-test/twilio-test.route";
 
 const router = Router();
 
@@ -74,5 +75,6 @@ router.use("/email-templates", emailTemplateRoutes);
 router.use("/audit-logs", auditLogRoutes);
 router.use("/activity-logs", activityLogRoutes);
 router.use("/system-settings", systemSettingRoutes);
+router.use("/twilio-test", twilioTestRoutes);
 
 export default router;

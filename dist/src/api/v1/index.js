@@ -29,6 +29,7 @@ const email_template_route_1 = __importDefault(require("./notifications/email-te
 const system_setting_route_1 = __importDefault(require("./admin/system-setting.route"));
 const audit_log_route_1 = __importDefault(require("./admin/audit-log.route"));
 const activity_log_route_1 = __importDefault(require("./admin/activity-log.route"));
+const twilio_test_route_1 = __importDefault(require("./twilio-test/twilio-test.route"));
 const router = (0, express_1.Router)();
 router.use("/", swagger_route_1.default);
 router.use("/auth", auth_route_1.default);
@@ -55,4 +56,5 @@ router.use("/email-templates", email_template_route_1.default);
 router.use("/audit-logs", audit_log_route_1.default);
 router.use("/activity-logs", activity_log_route_1.default);
 router.use("/system-settings", system_setting_route_1.default);
+router.use("/twilio-test", twilio_test_route_1.default);
 exports.default = router;
