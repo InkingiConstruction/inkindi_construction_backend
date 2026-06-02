@@ -3,6 +3,7 @@ import { UploadApiResponse } from "cloudinary";
 import { Prisma, ProgressReviewStatus } from "@prisma/client";
 import cloudinary from "../../../config/cloudinary.js";
 import prisma from "../../../config/db.js";
+import { notifyUsers } from "../../../lib/notifications.js";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -204,6 +205,26 @@ export const createProgressPhoto = async (req: Request, res: Response) => {
           },
         });
       }),
+    );
+
+    const supervisors = project.projectMembers.filter(
+      (member) => member.role === "supervisor" && member.status === "accepted",
+    );
+
+    await notifyUsers(
+      supervisors
+        .map((member) => member.userId)
+        .filter((userId) => userId !== req.user.id),
+      {
+        title: "Progress update needs review",
+        body: `${progressPhotos.length} progress ${progressPhotos.length === 1 ? "item" : "items"} uploaded for ${project.name}`,
+        data: {
+          type: "progress_media_uploaded",
+          projectId: project.id,
+          progressPhotoIds: progressPhotos.map((photo) => photo.id),
+          milestoneId: milestoneId ? String(milestoneId) : undefined,
+        },
+      },
     );
 
     return res.status(201).json({
@@ -435,6 +456,47 @@ export const updateProgressPhoto = async (req: Request, res: Response) => {
 
     if (oldPublicId) {
       await deleteCloudinaryFile(oldPublicId, oldWasVideo);
+    }
+
+    if (reviewStatus !== undefined) {
+      const statusLabel =
+        reviewStatus === "approved" ? "approved" : reviewStatus === "rejected" ? "rejected" : "updated";
+
+      await notifyUsers(
+        [progressPhoto.uploadedById, progressPhoto.project.clientId].filter(
+          (userId): userId is string => Boolean(userId && userId !== req.user.id),
+        ),
+        {
+          title: "Progress review updated",
+          body: `Progress media for ${progressPhoto.project.name} was ${statusLabel}`,
+          data: {
+            type: "progress_media_reviewed",
+            projectId: progressPhoto.projectId,
+            progressPhotoId: progressPhoto.id,
+            reviewStatus: progressPhoto.reviewStatus,
+          },
+        },
+      );
+    } else if (file) {
+      const supervisors = existingPhoto.project.projectMembers.filter(
+        (member) => member.role === "supervisor" && member.status === "accepted",
+      );
+
+      await notifyUsers(
+        supervisors
+          .map((member) => member.userId)
+          .filter((userId) => userId !== req.user.id),
+        {
+          title: "Progress update needs review",
+          body: `Progress media for ${progressPhoto.project.name} was updated`,
+          data: {
+            type: "progress_media_uploaded",
+            projectId: progressPhoto.projectId,
+            progressPhotoIds: [progressPhoto.id],
+            milestoneId: progressPhoto.milestoneId,
+          },
+        },
+      );
     }
 
     return res.json({

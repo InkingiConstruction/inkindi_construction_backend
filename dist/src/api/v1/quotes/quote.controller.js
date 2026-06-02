@@ -296,6 +296,16 @@ const updateQuote = async (req, res) => {
             cloudinaryUrl: upload.secure_url,
             publicId: upload.public_id,
         }));
+        const rejectedSupplierIds = status === "selected"
+            ? (await prisma_js_1.default.quote.findMany({
+                where: {
+                    rfqId: existingQuote.rfqId,
+                    id: { not: existingQuote.id },
+                    status: "pending_selection",
+                },
+                select: { supplierId: true },
+            })).map((quote) => quote.supplierId)
+            : [];
         const quote = await prisma_js_1.default.$transaction(async (tx) => {
             if (status === "selected") {
                 await tx.quote.updateMany({
@@ -363,6 +373,14 @@ const updateQuote = async (req, res) => {
                     rfqId: quote.rfqId,
                     quoteId: quote.id,
                     type: "quote_selected",
+                },
+            });
+            await (0, notifications_js_1.notifyUsers)(rejectedSupplierIds, {
+                title: "Quote not selected",
+                body: `Another quote was selected for ${quote.rfq.title}`,
+                data: {
+                    rfqId: quote.rfqId,
+                    type: "quote_rejected",
                 },
             });
         }

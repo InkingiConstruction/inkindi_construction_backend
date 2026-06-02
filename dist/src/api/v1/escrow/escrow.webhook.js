@@ -19,6 +19,7 @@ exports.handleStripeWebhook = void 0;
 const stripe_1 = __importDefault(require("../../../integrations/stripe"));
 const db_js_1 = __importDefault(require("../../../config/db.js"));
 const logger_middleware_1 = require("../../../common/middleware/logger.middleware");
+const notifications_js_1 = require("../../../lib/notifications.js");
 /**
  * ============================================================================
  * 🔧 FUNCTION: handleStripeWebhook
@@ -93,6 +94,17 @@ const handleStripeWebhook = async (req, res) => {
                     },
                 }),
             ]);
+            await (0, notifications_js_1.notifyProjectParticipants)({
+                projectId: escrow.projectId,
+                excludeUserId: escrow.project.clientId,
+                title: "Payment completed",
+                body: `Deposit of ${amount} ${escrow.project.currency} was completed for ${escrow.project.name}`,
+                data: {
+                    type: "stripe_deposit_completed",
+                    escrowAccountId,
+                    paymentIntentId: paymentIntent.id,
+                },
+            });
             logger_middleware_1.logger.info(`Escrow deposit confirmed: +${amount} to account ${escrowAccountId} via Stripe`);
         }
         catch (dbErr) {

@@ -15,6 +15,7 @@ import { Request, Response } from "express";
 import stripe from "../../../integrations/stripe";
 import prisma from "../../../config/db.js";
 import { logger } from "../../../common/middleware/logger.middleware";
+import { notifyProjectParticipants } from "../../../lib/notifications.js";
 
 /**
  * ============================================================================
@@ -96,6 +97,18 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
           },
         }),
       ]);
+
+      await notifyProjectParticipants({
+        projectId: escrow.projectId,
+        excludeUserId: escrow.project.clientId,
+        title: "Payment completed",
+        body: `Deposit of ${amount} ${escrow.project.currency} was completed for ${escrow.project.name}`,
+        data: {
+          type: "stripe_deposit_completed",
+          escrowAccountId,
+          paymentIntentId: paymentIntent.id,
+        },
+      });
 
       logger.info(`Escrow deposit confirmed: +${amount} to account ${escrowAccountId} via Stripe`);
     } catch (dbErr) {

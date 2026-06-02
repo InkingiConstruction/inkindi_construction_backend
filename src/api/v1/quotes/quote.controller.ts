@@ -3,7 +3,7 @@ import { Prisma, QuoteStatus } from "@prisma/client";
 import { UploadApiResponse } from "cloudinary";
 import cloudinary from "../../../lib/cloudinary.js";
 import prisma from "../../../lib/prisma.js";
-import { notifyUser } from "../../../lib/notifications.js";
+import { notifyUser, notifyUsers } from "../../../lib/notifications.js";
 
 type UploadedCert = {
   cloudinaryUrl: string;
@@ -379,6 +379,20 @@ export const updateQuote = async (req: Request, res: Response) => {
       publicId: upload.public_id,
     }));
 
+    const rejectedSupplierIds =
+      status === "selected"
+        ? (
+            await prisma.quote.findMany({
+              where: {
+                rfqId: existingQuote.rfqId,
+                id: { not: existingQuote.id },
+                status: "pending_selection",
+              },
+              select: { supplierId: true },
+            })
+          ).map((quote) => quote.supplierId)
+        : [];
+
     const quote = await prisma.$transaction(async (tx) => {
       if (status === "selected") {
         await tx.quote.updateMany({
@@ -453,6 +467,15 @@ export const updateQuote = async (req: Request, res: Response) => {
           rfqId: quote.rfqId,
           quoteId: quote.id,
           type: "quote_selected",
+        },
+      });
+
+      await notifyUsers(rejectedSupplierIds, {
+        title: "Quote not selected",
+        body: `Another quote was selected for ${quote.rfq.title}`,
+        data: {
+          rfqId: quote.rfqId,
+          type: "quote_rejected",
         },
       });
     }

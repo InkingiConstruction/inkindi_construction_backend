@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteTransaction = exports.updateTransaction = exports.getTransactionById = exports.getTransactions = exports.createTransaction = void 0;
 const client_1 = require("@prisma/client");
 const db_js_1 = __importDefault(require("../../../config/db.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJsonField = (value) => {
     if (!value)
@@ -277,6 +278,21 @@ const createTransaction = async (req, res) => {
                     : createdTransaction.escrowAccount,
             };
         });
+        await (0, notifications_js_1.notifyProjectParticipants)({
+            projectId: escrowAccount.projectId,
+            excludeUserId: req.user.id,
+            title: transaction.status === "completed"
+                ? "Payment completed"
+                : "Payment activity created",
+            body: `${transaction.type} transaction of ${transaction.amount.toString()} ${escrowAccount.project.currency} is ${transaction.status}`,
+            data: {
+                type: "transaction_created",
+                transactionId: transaction.id,
+                transactionType: transaction.type,
+                status: transaction.status,
+                milestoneId: transaction.milestoneId,
+            },
+        });
         return res.status(201).json({
             message: "Transaction created successfully",
             transaction,
@@ -425,7 +441,11 @@ const updateTransaction = async (req, res) => {
         const existingTransaction = await db_js_1.default.transaction.findUnique({
             where: { id },
             include: {
-                escrowAccount: true,
+                escrowAccount: {
+                    include: {
+                        project: true,
+                    },
+                },
                 milestone: true,
             },
         });
@@ -510,6 +530,23 @@ const updateTransaction = async (req, res) => {
                 },
             });
         });
+        if (status !== undefined) {
+            await (0, notifications_js_1.notifyProjectParticipants)({
+                projectId: existingTransaction.escrowAccount.projectId,
+                excludeUserId: req.user.id,
+                title: transaction.status === "completed"
+                    ? "Payment completed"
+                    : "Payment status updated",
+                body: `${transaction.type} transaction of ${transaction.amount.toString()} ${existingTransaction.escrowAccount.project.currency} is ${transaction.status}`,
+                data: {
+                    type: "transaction_status_updated",
+                    transactionId: transaction.id,
+                    transactionType: transaction.type,
+                    status: transaction.status,
+                    milestoneId: transaction.milestoneId,
+                },
+            });
+        }
         return res.json({
             message: "Transaction updated successfully",
             transaction,

@@ -14,6 +14,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteMilestone = exports.updateMilestone = exports.getMilestoneById = exports.getMilestones = exports.createMilestone = void 0;
 const milestone_service_1 = require("./milestone.service");
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 /**
  * 🧱 CODE BLOCK: Milestone HTTP Route Actions
@@ -24,6 +25,16 @@ const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const createMilestone = async (req, res) => {
     try {
         const milestone = await milestone_service_1.MilestoneService.createMilestone(req.body, req.user.id, req.user.role);
+        await (0, notifications_js_1.notifyProjectParticipants)({
+            projectId: milestone.projectId,
+            excludeUserId: req.user.id,
+            title: "New milestone created",
+            body: `${milestone.name} was added to ${milestone.project.name}`,
+            data: {
+                type: "milestone_created",
+                milestoneId: milestone.id,
+            },
+        });
         return res.status(201).json({ message: "Milestone created successfully", milestone });
     }
     catch (error) {
@@ -76,6 +87,19 @@ const updateMilestone = async (req, res) => {
         if (!id)
             return res.status(400).json({ message: "Milestone ID is required" });
         const milestone = await milestone_service_1.MilestoneService.updateMilestone(id, req.body, req.user.id, req.user.role);
+        if (req.body.status !== undefined) {
+            await (0, notifications_js_1.notifyProjectParticipants)({
+                projectId: milestone.projectId,
+                excludeUserId: req.user.id,
+                title: "Milestone status updated",
+                body: `${milestone.name} is now ${milestone.status}`,
+                data: {
+                    type: "milestone_status_updated",
+                    milestoneId: milestone.id,
+                    status: milestone.status,
+                },
+            });
+        }
         return res.json({ message: "Milestone updated successfully", milestone });
     }
     catch (error) {
