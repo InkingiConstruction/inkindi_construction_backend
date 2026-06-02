@@ -44,7 +44,8 @@ const isKycDocumentType = (value: unknown): value is KycDocumentType =>
   Object.values(KycDocumentType).includes(value as KycDocumentType);
 
 const getDocumentPublicId = (document: Record<string, unknown>) => {
-  const publicId = document.publicId || document.id || document.fileName || document.url;
+  const publicId =
+    document.publicId || document.id || document.fileName || document.url;
   return publicId ? String(publicId) : `registration-${Date.now()}`;
 };
 
@@ -62,7 +63,8 @@ const upsertRegistrationDocuments = async (
 
   await Promise.all(
     parsedDocuments.map(async (document) => {
-      if (!document || typeof document !== "object" || Array.isArray(document)) return;
+      if (!document || typeof document !== "object" || Array.isArray(document))
+        return;
 
       const typedDocument = document as Record<string, unknown>;
       const type = typedDocument.type;
@@ -173,8 +175,7 @@ export const updateCurrentUser = async (req: Request, res: Response) => {
 
     const parsedRoleSpecific = parseJson(roleSpecific);
     const parsedDocuments = parseJson(documents);
-    const nextKycStatus =
-      kycStatus === "pending" ? "submitted" : kycStatus;
+    const nextKycStatus = kycStatus === "pending" ? "submitted" : kycStatus;
     const files = (req.files as Express.Multer.File[] | undefined) || [];
     const uploadedProfileImage = files[0]
       ? await uploadImage(files[0], "inkingi/users/profile-images")
@@ -207,17 +208,23 @@ export const updateCurrentUser = async (req: Request, res: Response) => {
                 typeof parsedRoleSpecific === "object" &&
                 !Array.isArray(parsedRoleSpecific) &&
                 "selfieUri" in parsedRoleSpecific
-              ? String((parsedRoleSpecific as Record<string, unknown>).selfieUri || "")
+              ? String(
+                  (parsedRoleSpecific as Record<string, unknown>).selfieUri ||
+                    "",
+                )
               : undefined,
         kycStatus: nextKycStatus,
         kycSubmittedAt:
-          documents !== undefined || roleSpecific !== undefined || nextKycStatus === "submitted"
+          documents !== undefined ||
+          roleSpecific !== undefined ||
+          nextKycStatus === "submitted"
             ? new Date()
             : undefined,
-        kycRejectionReason:
-          nextKycStatus === "submitted" ? null : undefined,
+        kycRejectionReason: nextKycStatus === "submitted" ? null : undefined,
         registrationSubmittedAt:
-          documents !== undefined || roleSpecific !== undefined ? new Date() : undefined,
+          documents !== undefined || roleSpecific !== undefined
+            ? new Date()
+            : undefined,
       },
       select: selectUser,
     });
@@ -237,7 +244,9 @@ export const updateCurrentUser = async (req: Request, res: Response) => {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      return res.status(409).json({ message: "Phone number or username already exists" });
+      return res
+        .status(409)
+        .json({ message: "Phone number or username already exists" });
     }
 
     return res.status(500).json({ message: "Internal Server Error" });
@@ -352,7 +361,9 @@ export const createUser = async (req: Request, res: Response) => {
     } = req.body;
 
     if (!id || !name || !email) {
-      return res.status(400).json({ message: "id, name and email are required" });
+      return res
+        .status(400)
+        .json({ message: "id, name and email are required" });
     }
 
     const user = await prisma.user.create({
@@ -371,7 +382,9 @@ export const createUser = async (req: Request, res: Response) => {
             ? Boolean(phoneNumberVerified)
             : undefined,
         fcmToken,
-        passwordHash: password ? await hashPassword(String(password)) : undefined,
+        passwordHash: password
+          ? await hashPassword(String(password))
+          : undefined,
         notificationPrefs: parseJson(notificationPrefs) || {},
         roleSpecific: parseJson(roleSpecific) || {},
         registrationDocuments: parseJson(registrationDocuments) || [],
@@ -392,7 +405,8 @@ export const createUser = async (req: Request, res: Response) => {
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
-    const role = typeof req.query.role === "string" ? req.query.role : undefined;
+    const role =
+      typeof req.query.role === "string" ? req.query.role : undefined;
     const kycStatus =
       typeof req.query.kycStatus === "string" ? req.query.kycStatus : undefined;
 
@@ -509,7 +523,9 @@ export const updateUser = async (req: Request, res: Response) => {
             ? parseJson(notificationPrefs) || {}
             : undefined,
         roleSpecific:
-          roleSpecific !== undefined ? parseJson(roleSpecific) || {} : undefined,
+          roleSpecific !== undefined
+            ? parseJson(roleSpecific) || {}
+            : undefined,
         registrationDocuments:
           registrationDocuments !== undefined
             ? parseJson(registrationDocuments) || []
