@@ -1,10 +1,28 @@
 import { Request, Response } from "express";
+import { UploadApiResponse } from "cloudinary";
 import { KycDocumentType, KycStatus, Prisma } from "@prisma/client";
 import prisma from "../../../config/db.js";
 import { hashPassword } from "../../../utils/password.js";
+import cloudinary from "../../../config/cloudinary.js";
 
 const getId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
+
+const uploadImage = (file: Express.Multer.File, folder: string) =>
+  new Promise<UploadApiResponse>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (error || !result) return reject(error);
+        resolve(result);
+      },
+    );
+
+    stream.end(file.buffer);
+  });
 
 const parseJson = (value: unknown) => {
   if (!value) return undefined;
@@ -157,12 +175,16 @@ export const updateCurrentUser = async (req: Request, res: Response) => {
     const parsedDocuments = parseJson(documents);
     const nextKycStatus =
       kycStatus === "pending" ? "submitted" : kycStatus;
+    const files = (req.files as Express.Multer.File[] | undefined) || [];
+    const uploadedProfileImage = files[0]
+      ? await uploadImage(files[0], "inkingi/users/profile-images")
+      : null;
 
     const user = await prisma.user.update({
       where: { id: req.user.id },
       data: {
         name,
-        image,
+        image: uploadedProfileImage?.secure_url || image,
         role: nextRole,
         username,
         displayUsername,

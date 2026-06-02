@@ -7,7 +7,19 @@ exports.deleteUser = exports.updateUser = exports.getUserById = exports.getUsers
 const client_1 = require("@prisma/client");
 const db_js_1 = __importDefault(require("../../../config/db.js"));
 const password_js_1 = require("../../../utils/password.js");
+const cloudinary_js_1 = __importDefault(require("../../../config/cloudinary.js"));
 const getId = (id) => Array.isArray(id) ? id[0] : id;
+const uploadImage = (file, folder) => new Promise((resolve, reject) => {
+    const stream = cloudinary_js_1.default.uploader.upload_stream({
+        folder,
+        resource_type: "image",
+    }, (error, result) => {
+        if (error || !result)
+            return reject(error);
+        resolve(result);
+    });
+    stream.end(file.buffer);
+});
 const parseJson = (value) => {
     if (!value)
         return undefined;
@@ -124,11 +136,15 @@ const updateCurrentUser = async (req, res) => {
         const parsedRoleSpecific = parseJson(roleSpecific);
         const parsedDocuments = parseJson(documents);
         const nextKycStatus = kycStatus === "pending" ? "submitted" : kycStatus;
+        const files = req.files || [];
+        const uploadedProfileImage = files[0]
+            ? await uploadImage(files[0], "inkingi/users/profile-images")
+            : null;
         const user = await db_js_1.default.user.update({
             where: { id: req.user.id },
             data: {
                 name,
-                image,
+                image: uploadedProfileImage?.secure_url || image,
                 role: nextRole,
                 username,
                 displayUsername,

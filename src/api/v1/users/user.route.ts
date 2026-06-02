@@ -21,7 +21,7 @@ const router = Router();
 router.post("/", requiredAuth, requireRole("admin"), uploadImages, createUser);
 router.get("/", requiredAuth, requireRole("admin"), getUsers);
 router.get("/me", requiredAuth, getCurrentUser);
-router.patch("/me", requiredAuth, updateCurrentUser);
+router.patch("/me", requiredAuth, uploadImages, updateCurrentUser);
 router.patch("/me/role", requiredAuth, updateCurrentUserRole);
 router.get("/engineers", requiredAuth, requireRole("client", "admin"), getEngineers);
 router.get("/supervisors", requiredAuth, requireRole("client", "engineer", "admin"), getSupervisors);
