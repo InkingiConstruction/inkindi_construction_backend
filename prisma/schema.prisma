@@ -19,10 +19,16 @@ enum KycDocumentType {
   national_id
   passport
   ier_license
+  ier_certificate
+  ier_corporate_license
   indemnity_insurance
   business_registration
+  rdb_certificate
   tax_compliance
+  tin_certificate
   certification
+  practice_license
+  accreditation_cert
 }
 
 enum KycDocumentStatus {
@@ -171,6 +177,10 @@ model User {
   kycSubmittedAt      DateTime?
   kycReviewedAt       DateTime?
   kycRejectionReason  String?
+  roleSpecific        Json      @default("{}")
+  registrationDocuments Json    @default("[]")
+  selfieUrl           String?
+  registrationSubmittedAt DateTime?
   lastLoginAt         DateTime?
   notificationPrefs   Json      @default("{}")
 

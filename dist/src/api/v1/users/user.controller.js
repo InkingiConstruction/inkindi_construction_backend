@@ -22,6 +22,48 @@ const parseJson = (value) => {
 };
 const isKycStatus = (value) => typeof value === "string" &&
     Object.values(client_1.KycStatus).includes(value);
+const isKycDocumentType = (value) => typeof value === "string" &&
+    Object.values(client_1.KycDocumentType).includes(value);
+const getDocumentPublicId = (document) => {
+    const publicId = document.publicId || document.id || document.fileName || document.url;
+    return publicId ? String(publicId) : `registration-${Date.now()}`;
+};
+const getDocumentUrl = (document) => {
+    const url = document.url || document.cloudinaryUrl || document.uri;
+    return url ? String(url) : undefined;
+};
+const upsertRegistrationDocuments = async (userId, documents) => {
+    const parsedDocuments = parseJson(documents);
+    if (!Array.isArray(parsedDocuments))
+        return;
+    await Promise.all(parsedDocuments.map(async (document) => {
+        if (!document || typeof document !== "object" || Array.isArray(document))
+            return;
+        const typedDocument = document;
+        const type = typedDocument.type;
+        const cloudinaryUrl = getDocumentUrl(typedDocument);
+        if (!isKycDocumentType(type) || !cloudinaryUrl)
+            return;
+        const existing = await db_js_1.default.kycDocument.findFirst({
+            where: { userId, type },
+            select: { id: true },
+        });
+        await db_js_1.default.kycDocument.upsert({
+            where: { id: existing?.id ?? "new" },
+            update: {
+                cloudinaryUrl,
+                publicId: getDocumentPublicId(typedDocument),
+                status: "pending",
+            },
+            create: {
+                userId,
+                type,
+                cloudinaryUrl,
+                publicId: getDocumentPublicId(typedDocument),
+            },
+        });
+    }));
+};
 const allowedSelfRoles = ["client", "engineer", "supervisor", "supplier"];
 const selectUser = {
     id: true,
@@ -42,6 +84,10 @@ const selectUser = {
     kycSubmittedAt: true,
     kycReviewedAt: true,
     kycRejectionReason: true,
+    roleSpecific: true,
+    registrationDocuments: true,
+    selfieUrl: true,
+    registrationSubmittedAt: true,
     lastLoginAt: true,
     notificationPrefs: true,
     createdAt: true,
@@ -67,11 +113,17 @@ const getCurrentUser = async (req, res) => {
 exports.getCurrentUser = getCurrentUser;
 const updateCurrentUser = async (req, res) => {
     try {
-        const { name, image, role, username, displayUsername, phoneNumber, fcmToken, notificationPrefs, } = req.body;
+        const { name, image, role, username, displayUsername, phoneNumber, fcmToken, notificationPrefs, roleSpecific, documents, selfieUrl, kycStatus, } = req.body;
         const nextRole = typeof role === "string" ? role.trim().toLowerCase() : undefined;
         if (nextRole && !allowedSelfRoles.includes(nextRole)) {
             return res.status(400).json({ message: "Invalid role" });
         }
+        if (kycStatus !== undefined && !isKycStatus(kycStatus)) {
+            return res.status(400).json({ message: "Invalid KYC status" });
+        }
+        const parsedRoleSpecific = parseJson(roleSpecific);
+        const parsedDocuments = parseJson(documents);
+        const nextKycStatus = kycStatus === "pending" ? "submitted" : kycStatus;
         const user = await db_js_1.default.user.update({
             where: { id: req.user.id },
             data: {
@@ -85,9 +137,30 @@ const updateCurrentUser = async (req, res) => {
                 notificationPrefs: notificationPrefs !== undefined
                     ? parseJson(notificationPrefs) || {}
                     : undefined,
+                roleSpecific: roleSpecific !== undefined ? parsedRoleSpecific || {} : undefined,
+                registrationDocuments: documents !== undefined ? parsedDocuments || [] : undefined,
+                selfieUrl: selfieUrl !== undefined
+                    ? selfieUrl
+                        ? String(selfieUrl)
+                        : null
+                    : parsedRoleSpecific &&
+                        typeof parsedRoleSpecific === "object" &&
+                        !Array.isArray(parsedRoleSpecific) &&
+                        "selfieUri" in parsedRoleSpecific
+                        ? String(parsedRoleSpecific.selfieUri || "")
+                        : undefined,
+                kycStatus: nextKycStatus,
+                kycSubmittedAt: documents !== undefined || roleSpecific !== undefined || nextKycStatus === "submitted"
+                    ? new Date()
+                    : undefined,
+                kycRejectionReason: nextKycStatus === "submitted" ? null : undefined,
+                registrationSubmittedAt: documents !== undefined || roleSpecific !== undefined ? new Date() : undefined,
             },
             select: selectUser,
         });
+        if (documents !== undefined) {
+            await upsertRegistrationDocuments(req.user.id, documents);
+        }
         return res.json({
             message: "User updated successfully",
             user,
@@ -188,7 +261,7 @@ const getSuppliers = async (_req, res) => {
 exports.getSuppliers = getSuppliers;
 const createUser = async (req, res) => {
     try {
-        const { id, name, email, emailVerified, image, role, username, displayUsername, phoneNumber, phoneNumberVerified, fcmToken, notificationPrefs, password, } = req.body;
+        const { id, name, email, emailVerified, image, role, username, displayUsername, phoneNumber, phoneNumberVerified, fcmToken, notificationPrefs, roleSpecific, registrationDocuments, selfieUrl, password, } = req.body;
         if (!id || !name || !email) {
             return res.status(400).json({ message: "id, name and email are required" });
         }
@@ -209,6 +282,9 @@ const createUser = async (req, res) => {
                 fcmToken,
                 passwordHash: password ? await (0, password_js_1.hashPassword)(String(password)) : undefined,
                 notificationPrefs: parseJson(notificationPrefs) || {},
+                roleSpecific: parseJson(roleSpecific) || {},
+                registrationDocuments: parseJson(registrationDocuments) || [],
+                selfieUrl,
             },
             select: selectUser,
         });
@@ -273,7 +349,7 @@ exports.getUserById = getUserById;
 const updateUser = async (req, res) => {
     try {
         const id = getId(req.params.id);
-        const { name, email, emailVerified, image, role, banned, banReason, banExpires, username, displayUsername, phoneNumber, phoneNumberVerified, fcmToken, kycStatus, kycRejectionReason, notificationPrefs, } = req.body;
+        const { name, email, emailVerified, image, role, banned, banReason, banExpires, username, displayUsername, phoneNumber, phoneNumberVerified, fcmToken, kycStatus, kycRejectionReason, notificationPrefs, roleSpecific, registrationDocuments, selfieUrl, registrationSubmittedAt, } = req.body;
         if (!id) {
             return res.status(400).json({ message: "User ID is required" });
         }
@@ -306,6 +382,16 @@ const updateUser = async (req, res) => {
                 kycRejectionReason,
                 notificationPrefs: notificationPrefs !== undefined
                     ? parseJson(notificationPrefs) || {}
+                    : undefined,
+                roleSpecific: roleSpecific !== undefined ? parseJson(roleSpecific) || {} : undefined,
+                registrationDocuments: registrationDocuments !== undefined
+                    ? parseJson(registrationDocuments) || []
+                    : undefined,
+                selfieUrl,
+                registrationSubmittedAt: registrationSubmittedAt !== undefined
+                    ? registrationSubmittedAt
+                        ? new Date(registrationSubmittedAt)
+                        : null
                     : undefined,
             },
             select: selectUser,

@@ -25,6 +25,10 @@ const selectUser = {
     phoneNumberVerified: true,
     kycStatus: true,
     kycRejectionReason: true,
+    roleSpecific: true,
+    registrationDocuments: true,
+    selfieUrl: true,
+    registrationSubmittedAt: true,
     createdAt: true,
     updatedAt: true,
 };

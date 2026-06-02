@@ -27,9 +27,34 @@ const email_tempelates_js_1 = require("../../../utils/email-tempelates.js");
  */
 const REQUIRED_DOCUMENTS = {
     client: ["national_id"],
-    supervisor: ["national_id", "indemnity_insurance", "certification"],
-    engineer: ["national_id", "ier_license", "indemnity_insurance"],
-    supplier: ["national_id", "business_registration", "tax_compliance"],
+    supervisor: ["national_id", "practice_license"],
+    engineer: ["national_id", "ier_certificate"],
+    supplier: ["rdb_certificate", "tin_certificate"],
+};
+const OPTIONAL_DOCUMENTS = {
+    client: ["passport"],
+    supervisor: ["passport", "rdb_certificate", "accreditation_cert", "certification", "indemnity_insurance"],
+    engineer: ["passport", "rdb_certificate", "ier_license", "ier_corporate_license", "business_registration", "indemnity_insurance"],
+    supplier: ["business_registration", "tax_compliance", "national_id"],
+};
+const getRoleSpecificValue = (roleSpecific, key) => {
+    if (!roleSpecific || typeof roleSpecific !== "object" || Array.isArray(roleSpecific)) {
+        return undefined;
+    }
+    return roleSpecific[key];
+};
+const getRequiredDocuments = (role, roleSpecific) => {
+    if (role === "engineer") {
+        return getRoleSpecificValue(roleSpecific, "engineerType") === "company"
+            ? ["rdb_certificate", "ier_corporate_license"]
+            : ["national_id", "ier_certificate"];
+    }
+    if (role === "supervisor") {
+        return getRoleSpecificValue(roleSpecific, "supervisorType") === "company"
+            ? ["rdb_certificate", "accreditation_cert"]
+            : ["national_id", "practice_license"];
+    }
+    return REQUIRED_DOCUMENTS[role] ?? [];
 };
 class KycService {
     /**
@@ -55,7 +80,10 @@ class KycService {
             throw new Error("EMAIL_UNVERIFIED");
         if (!phoneVerified)
             throw new Error("PHONE_UNVERIFIED");
-        const allowed = REQUIRED_DOCUMENTS[userRole] ?? [];
+        const allowed = [
+            ...(REQUIRED_DOCUMENTS[userRole] ?? []),
+            ...(OPTIONAL_DOCUMENTS[userRole] ?? []),
+        ];
         if (!allowed.includes(type)) {
             throw new Error(`INVALID_DOC_TYPE:${type}`);
         }
@@ -112,7 +140,7 @@ class KycService {
             db_js_1.default.user.findMany({
                 where: { kycStatus: "submitted" },
                 select: {
-                    id: true, name: true, email: true, role: true, kycStatus: true, kycSubmittedAt: true,
+                    id: true, name: true, email: true, role: true, roleSpecific: true, selfieUrl: true, registrationSubmittedAt: true, kycStatus: true, kycSubmittedAt: true,
                     kycDocuments: { select: { id: true, type: true, cloudinaryUrl: true, status: true } },
                 },
                 orderBy: { kycSubmittedAt: "asc" },
@@ -137,7 +165,7 @@ class KycService {
         const user = await db_js_1.default.user.findUnique({ where: { id: userId }, include: { kycDocuments: true } });
         if (!user)
             throw new Error("User not found");
-        const required = REQUIRED_DOCUMENTS[user.role] ?? [];
+        const required = getRequiredDocuments(user.role, user.roleSpecific);
         const uploaded = user.kycDocuments.map((d) => d.type);
         const missing = required.filter((r) => !uploaded.includes(r));
         if (missing.length > 0)
