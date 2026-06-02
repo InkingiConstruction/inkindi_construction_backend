@@ -7,6 +7,7 @@ const role_middleware_1 = require("../middleware/role.middleware");
 const upload_middleware_1 = require("../middleware/upload.middleware");
 const router = (0, express_1.Router)();
 router.post("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), upload_middleware_1.uploadImages, message_controller_1.createMessage);
+router.get("/conversations", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), message_controller_1.getConversations);
 router.get("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), message_controller_1.getMessages);
 router.get("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), message_controller_1.getMessageById);
 router.put("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), upload_middleware_1.uploadImages, message_controller_1.updateMessage);

@@ -201,6 +201,7 @@ model User {
   transactions         Transaction[]
   notifications        Notification[]
   sentMessages         Message[]
+  receivedMessages     Message[]              @relation("MessageRecipient")
   auditLogs            AuditLog[]
   activityLogs         ActivityLog[]
   apiKeys              ApiKey[]
@@ -580,16 +581,19 @@ model DisputeEvidence {
 
 model Message {
   id        String   @id @default(cuid())
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
   senderId  String
   sender    User     @relation(fields: [senderId], references: [id])
+  recipientId String?
+  recipient User?    @relation("MessageRecipient", fields: [recipientId], references: [id])
   content   String
   photoUrl  String?
   createdAt DateTime @default(now())
 
   @@index([projectId])
   @@index([senderId])
+  @@index([recipientId])
   @@map("message")
 }
 

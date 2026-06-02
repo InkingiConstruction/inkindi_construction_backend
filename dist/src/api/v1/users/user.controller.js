@@ -163,14 +163,19 @@ const updateCurrentUser = async (req, res) => {
                         typeof parsedRoleSpecific === "object" &&
                         !Array.isArray(parsedRoleSpecific) &&
                         "selfieUri" in parsedRoleSpecific
-                        ? String(parsedRoleSpecific.selfieUri || "")
+                        ? String(parsedRoleSpecific.selfieUri ||
+                            "")
                         : undefined,
                 kycStatus: nextKycStatus,
-                kycSubmittedAt: documents !== undefined || roleSpecific !== undefined || nextKycStatus === "submitted"
+                kycSubmittedAt: documents !== undefined ||
+                    roleSpecific !== undefined ||
+                    nextKycStatus === "submitted"
                     ? new Date()
                     : undefined,
                 kycRejectionReason: nextKycStatus === "submitted" ? null : undefined,
-                registrationSubmittedAt: documents !== undefined || roleSpecific !== undefined ? new Date() : undefined,
+                registrationSubmittedAt: documents !== undefined || roleSpecific !== undefined
+                    ? new Date()
+                    : undefined,
             },
             select: selectUser,
         });
@@ -186,7 +191,9 @@ const updateCurrentUser = async (req, res) => {
         console.error("Update current user error:", error);
         if (error instanceof client_1.Prisma.PrismaClientKnownRequestError &&
             error.code === "P2002") {
-            return res.status(409).json({ message: "Phone number or username already exists" });
+            return res
+                .status(409)
+                .json({ message: "Phone number or username already exists" });
         }
         return res.status(500).json({ message: "Internal Server Error" });
     }
@@ -279,7 +286,9 @@ const createUser = async (req, res) => {
     try {
         const { id, name, email, emailVerified, image, role, username, displayUsername, phoneNumber, phoneNumberVerified, fcmToken, notificationPrefs, roleSpecific, registrationDocuments, selfieUrl, password, } = req.body;
         if (!id || !name || !email) {
-            return res.status(400).json({ message: "id, name and email are required" });
+            return res
+                .status(400)
+                .json({ message: "id, name and email are required" });
         }
         const user = await db_js_1.default.user.create({
             data: {
@@ -296,7 +305,9 @@ const createUser = async (req, res) => {
                     ? Boolean(phoneNumberVerified)
                     : undefined,
                 fcmToken,
-                passwordHash: password ? await (0, password_js_1.hashPassword)(String(password)) : undefined,
+                passwordHash: password
+                    ? await (0, password_js_1.hashPassword)(String(password))
+                    : undefined,
                 notificationPrefs: parseJson(notificationPrefs) || {},
                 roleSpecific: parseJson(roleSpecific) || {},
                 registrationDocuments: parseJson(registrationDocuments) || [],
@@ -399,7 +410,9 @@ const updateUser = async (req, res) => {
                 notificationPrefs: notificationPrefs !== undefined
                     ? parseJson(notificationPrefs) || {}
                     : undefined,
-                roleSpecific: roleSpecific !== undefined ? parseJson(roleSpecific) || {} : undefined,
+                roleSpecific: roleSpecific !== undefined
+                    ? parseJson(roleSpecific) || {}
+                    : undefined,
                 registrationDocuments: registrationDocuments !== undefined
                     ? parseJson(registrationDocuments) || []
                     : undefined,
