@@ -217,7 +217,10 @@ export const verifyEmail = async (req: Request, res: Response) => {
 
     const user = await prisma.user.update({
       where: { email },
-      data: { emailVerified: true },
+      data: {
+        emailVerified: true,
+        phoneNumberVerified: true,
+      },
       select: selectUser,
     });
 

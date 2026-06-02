@@ -185,7 +185,10 @@ const verifyEmail = async (req, res) => {
         }
         const user = await db_js_1.default.user.update({
             where: { email },
-            data: { emailVerified: true },
+            data: {
+                emailVerified: true,
+                phoneNumberVerified: true,
+            },
             select: selectUser,
         });
         await db_js_1.default.authOtp.update({
