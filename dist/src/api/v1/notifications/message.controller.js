@@ -399,8 +399,10 @@ const updateMessage = async (req, res) => {
             data: {
                 content,
                 photoUrl: upload?.secure_url || photoUrl,
+                editedAt: new Date(),
             },
             include: {
+                project: true,
                 sender: {
                     select: {
                         id: true,
@@ -410,6 +412,7 @@ const updateMessage = async (req, res) => {
                         image: true,
                     },
                 },
+                recipient: { select: userSelect },
             },
         });
         return res.json({
