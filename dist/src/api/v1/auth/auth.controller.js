@@ -272,7 +272,7 @@ const resendOtp = async (req, res) => {
         if (!user) {
             return res
                 .status(404)
-                .json({ message: "No account found for this email. Please go back and check the email address." });
+                .json({ message: "This email has not been registered yet. Go back and create the account first." });
         }
         const sent = await sendVerificationOtp(user);
         if (!sent) {
