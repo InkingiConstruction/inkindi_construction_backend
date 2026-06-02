@@ -257,11 +257,29 @@ const escrow_service_1 = require("./escrow.service");
 const createStripeDeposit = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
-        const { amount, currency = "usd" } = req.body;
-        if (!id || !amount) {
+        const { amount, currency } = req.body;
+        const numericAmount = Number(amount);
+        if (!id || !Number.isFinite(numericAmount) || numericAmount <= 0) {
             return res.status(400).json({ message: "Account ID and amount are required" });
         }
-        const intent = await escrow_service_1.EscrowService.createStripePaymentIntent(Number(amount), currency, id);
+        const escrow = await db_js_1.default.escrowAccount.findUnique({
+            where: { id },
+            include: {
+                project: {
+                    select: {
+                        clientId: true,
+                        currency: true,
+                    },
+                },
+            },
+        });
+        if (!escrow) {
+            return res.status(404).json({ message: "Escrow account not found" });
+        }
+        if (req.user.role !== "admin" && escrow.project.clientId !== req.user.id) {
+            return res.status(403).json({ message: "Only the project owner can fund this escrow account" });
+        }
+        const intent = await escrow_service_1.EscrowService.createStripePaymentIntent(numericAmount, currency || escrow.currency || escrow.project.currency, id, req.user.id);
         return res.json({ message: "Stripe Payment Intent created", data: intent });
     }
     catch (error) {
