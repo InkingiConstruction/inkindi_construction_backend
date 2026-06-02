@@ -76,7 +76,10 @@ export function cacheMiddleware(ttlSeconds = 60) {
       return next();
     }
 
-    const key = `__cache__${req.originalUrl}`;
+    const userScope = req.user
+      ? `${String(req.user.role).toLowerCase()}:${req.user.id}`
+      : "anonymous";
+    const key = `__cache__${userScope}:${req.method}:${req.originalUrl}`;
     const cachedResponse = cacheStore.get(key);
 
     if (cachedResponse) {

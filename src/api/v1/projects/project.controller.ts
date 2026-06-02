@@ -13,6 +13,7 @@
 
 import { Request, Response } from "express";
 import { ProjectService, ProjectMediaCollection } from "./project.service";
+import { cacheStore } from "../../../common/services/cache.service";
 
 const getParamId = (id: string | string[] | undefined): string | undefined =>
   Array.isArray(id) ? id[0] : id;
@@ -30,6 +31,7 @@ export const createProject = async (req: Request, res: Response) => {
     const files = (req.files as Express.Multer.File[]) || [];
     
     const project = await ProjectService.createProject(userId, req.body, files);
+    cacheStore.clear();
 
     return res.status(201).json({
       message: "Project created successfully",
@@ -77,6 +79,7 @@ export const updateProject = async (req: Request, res: Response) => {
 
     const files = (req.files as Express.Multer.File[]) || [];
     const project = await ProjectService.updateProject(id, req.user.id, req.user.role, req.body, files);
+    cacheStore.clear();
 
     return res.json({
       message: "Project updated successfully",
@@ -96,6 +99,7 @@ export const toggleProjectStatus = async (req: Request, res: Response) => {
     }
 
     const project = await ProjectService.toggleProjectStatus(id, req.user.id, req.user.role, req.body.status);
+    cacheStore.clear();
 
     return res.json({
       message: "Project status updated successfully",
@@ -126,6 +130,7 @@ export const changeProjectImage = async (req: Request, res: Response) => {
       publicId,
       file
     );
+    cacheStore.clear();
 
     return res.json({
       message: "Project image changed successfully",
@@ -153,6 +158,7 @@ export const deleteProjectImage = async (req: Request, res: Response) => {
       collection as ProjectMediaCollection,
       publicId
     );
+    cacheStore.clear();
 
     return res.json({
       message: "Project image deleted successfully",
@@ -172,6 +178,7 @@ export const deleteProject = async (req: Request, res: Response) => {
     }
 
     await ProjectService.deleteProject(id, req.user.id, req.user.role);
+    cacheStore.clear();
     return res.json({ message: "Project deleted successfully" });
   } catch (error: any) {
     const status = error.message === "Project not found" ? 404 : error.message === "Forbidden" ? 403 : 500;

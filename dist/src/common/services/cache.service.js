@@ -67,7 +67,10 @@ function cacheMiddleware(ttlSeconds = 60) {
         if (req.method !== "GET") {
             return next();
         }
-        const key = `__cache__${req.originalUrl}`;
+        const userScope = req.user
+            ? `${String(req.user.role).toLowerCase()}:${req.user.id}`
+            : "anonymous";
+        const key = `__cache__${userScope}:${req.method}:${req.originalUrl}`;
         const cachedResponse = exports.cacheStore.get(key);
         if (cachedResponse) {
             logger_middleware_1.logger.debug(`Cache Hit for key: ${key}`);
