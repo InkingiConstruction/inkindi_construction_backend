@@ -91,6 +91,7 @@ const sendVerificationOtp = async (user) => {
     if (!sent && process.env.NODE_ENV !== "production") {
         console.log(`Email verification OTP for ${user.email}: ${otp}`);
     }
+    return sent;
 };
 const sendPasswordResetOtp = async (user) => {
     const otp = generateOtp();
@@ -268,8 +269,16 @@ const resendOtp = async (req, res) => {
             where: { email },
             select: { id: true, email: true },
         });
-        if (user) {
-            await sendVerificationOtp(user);
+        if (!user) {
+            return res
+                .status(404)
+                .json({ message: "No account found for this email. Please go back and check the email address." });
+        }
+        const sent = await sendVerificationOtp(user);
+        if (!sent) {
+            return res.status(502).json({
+                message: "OTP email could not be sent. Please try again later.",
+            });
         }
         return res.json({ message: "OTP sent successfully" });
     }
