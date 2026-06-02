@@ -87,7 +87,7 @@ const getRegistrationConflictMessage = (error: unknown) => {
   }
 
   if (target.includes("username") || errorContains(error, "username")) {
-    return "Email username is already registered. Use another email address.";
+    return "Username is already registered";
   }
 
   return "This account already exists";
@@ -171,18 +171,6 @@ export const register = async (req: Request, res: Response) => {
       }
     }
 
-    const username = email.includes("@") ? email.split("@")[0] : email;
-
-    const existingUsername = await prisma.user.findUnique({
-      where: { username },
-    });
-
-    if (existingUsername) {
-      return res
-        .status(409)
-        .json({ message: "Email username is already registered. Use another email address." });
-    }
-
     const passwordHash = await hashPassword(password);
 
     const user = await prisma.user.create({
@@ -194,8 +182,6 @@ export const register = async (req: Request, res: Response) => {
         role,
         phoneNumber,
         phoneNumberVerified: Boolean(phoneNumber),
-        username,
-        displayUsername: username,
       },
       select: selectUser,
     });

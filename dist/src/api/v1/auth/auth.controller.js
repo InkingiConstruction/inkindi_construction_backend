@@ -71,7 +71,7 @@ const getRegistrationConflictMessage = (error) => {
         return "Phone number is already registered";
     }
     if (target.includes("username") || errorContains(error, "username")) {
-        return "Email username is already registered. Use another email address.";
+        return "Username is already registered";
     }
     return "This account already exists";
 };
@@ -137,15 +137,6 @@ const register = async (req, res) => {
                 return res.status(409).json({ message: "Phone number is already registered" });
             }
         }
-        const username = email.includes("@") ? email.split("@")[0] : email;
-        const existingUsername = await db_js_1.default.user.findUnique({
-            where: { username },
-        });
-        if (existingUsername) {
-            return res
-                .status(409)
-                .json({ message: "Email username is already registered. Use another email address." });
-        }
         const passwordHash = await (0, password_js_1.hashPassword)(password);
         const user = await db_js_1.default.user.create({
             data: {
@@ -156,8 +147,6 @@ const register = async (req, res) => {
                 role,
                 phoneNumber,
                 phoneNumberVerified: Boolean(phoneNumber),
-                username,
-                displayUsername: username,
             },
             select: selectUser,
         });
