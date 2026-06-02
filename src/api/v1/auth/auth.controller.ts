@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
 import prisma from "../../../config/db.js";
 import { createMobileJwt } from "../../../utils/mobile-jwt.js";
 import { hashOtp, hashPassword, verifyPassword } from "../../../utils/password.js";
@@ -42,6 +43,31 @@ const createToken = (user: { id: string; role?: string | null }) =>
   createMobileJwt({ sub: user.id, role: user.role });
 
 const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+
+const getRegistrationConflictMessage = (error: unknown) => {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  ) {
+    const target = Array.isArray(error.meta?.target)
+      ? error.meta.target.map(String)
+      : [];
+
+    if (target.includes("email")) {
+      return "Email is already registered";
+    }
+
+    if (target.includes("phoneNumber")) {
+      return "Phone number is already registered";
+    }
+
+    if (target.includes("username")) {
+      return "Username is already registered";
+    }
+  }
+
+  return null;
+};
 
 const sendVerificationOtp = async (user: { id: string; email: string }) => {
   const otp = generateOtp();
@@ -111,6 +137,16 @@ export const register = async (req: Request, res: Response) => {
       return res.status(409).json({ message: "Email is already registered" });
     }
 
+    if (phoneNumber) {
+      const existingPhone = await prisma.user.findUnique({
+        where: { phoneNumber },
+      });
+
+      if (existingPhone) {
+        return res.status(409).json({ message: "Phone number is already registered" });
+      }
+    }
+
     const username = email.includes("@") ? email.split("@")[0] : email;
     const passwordHash = await hashPassword(password);
 
@@ -140,6 +176,12 @@ export const register = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Register error:", error);
+    const conflictMessage = getRegistrationConflictMessage(error);
+
+    if (conflictMessage) {
+      return res.status(409).json({ message: conflictMessage });
+    }
+
     return res.status(500).json({ message: "Registration failed" });
   }
 };

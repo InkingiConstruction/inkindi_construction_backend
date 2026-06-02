@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.logout = exports.changePassword = exports.getMe = exports.resetPassword = exports.requestPasswordReset = exports.resendOtp = exports.verifyEmail = exports.login = exports.register = void 0;
 const crypto_1 = require("crypto");
+const client_1 = require("@prisma/client");
 const db_js_1 = __importDefault(require("../../../config/db.js"));
 const mobile_jwt_js_1 = require("../../../utils/mobile-jwt.js");
 const password_js_1 = require("../../../utils/password.js");
@@ -38,6 +39,24 @@ const sanitizeRole = (role) => {
 };
 const createToken = (user) => (0, mobile_jwt_js_1.createMobileJwt)({ sub: user.id, role: user.role });
 const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+const getRegistrationConflictMessage = (error) => {
+    if (error instanceof client_1.Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002") {
+        const target = Array.isArray(error.meta?.target)
+            ? error.meta.target.map(String)
+            : [];
+        if (target.includes("email")) {
+            return "Email is already registered";
+        }
+        if (target.includes("phoneNumber")) {
+            return "Phone number is already registered";
+        }
+        if (target.includes("username")) {
+            return "Username is already registered";
+        }
+    }
+    return null;
+};
 const sendVerificationOtp = async (user) => {
     const otp = generateOtp();
     await db_js_1.default.authOtp.create({
@@ -92,6 +111,14 @@ const register = async (req, res) => {
         if (existingUser) {
             return res.status(409).json({ message: "Email is already registered" });
         }
+        if (phoneNumber) {
+            const existingPhone = await db_js_1.default.user.findUnique({
+                where: { phoneNumber },
+            });
+            if (existingPhone) {
+                return res.status(409).json({ message: "Phone number is already registered" });
+            }
+        }
         const username = email.includes("@") ? email.split("@")[0] : email;
         const passwordHash = await (0, password_js_1.hashPassword)(password);
         const user = await db_js_1.default.user.create({
@@ -119,6 +146,10 @@ const register = async (req, res) => {
     }
     catch (error) {
         console.error("Register error:", error);
+        const conflictMessage = getRegistrationConflictMessage(error);
+        if (conflictMessage) {
+            return res.status(409).json({ message: conflictMessage });
+        }
         return res.status(500).json({ message: "Registration failed" });
     }
 };
