@@ -41,6 +41,9 @@ const allowedOrigins = [
   "http://127.0.0.1:5173",
   "http://localhost:8081",
   "http://192.168.1.171:8081",
+  "https://inkindi-construction-backend.onrender.com",
+  process.env.BACKEND_URL,
+  process.env.RENDER_EXTERNAL_URL,
   process.env.FRONTEND_URL,
   process.env.MOBILE_URL,
   ...envAllowedOrigins,
@@ -86,7 +89,7 @@ app.use(
         callback(null, true);
       } else {
         logger.warn(`Blocked origin attempt: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
+        callback(null, false);
       }
     },
     credentials: true,
