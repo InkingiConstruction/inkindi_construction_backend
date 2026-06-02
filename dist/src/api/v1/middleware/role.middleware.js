@@ -2,7 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isSupplier = exports.isSupervisor = exports.isEngineer = exports.isClient = exports.isAdmin = exports.requireRole = void 0;
 const requireRole = (...roles) => (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    const currentRole = String(req.user.role || "").trim().toLowerCase();
+    if (!roles.includes(currentRole)) {
         return res.status(403).json({
             message: "Forbidden",
             requiredRoles: roles,

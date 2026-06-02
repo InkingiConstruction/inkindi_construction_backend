@@ -14,6 +14,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteProject = exports.deleteProjectImage = exports.changeProjectImage = exports.toggleProjectStatus = exports.updateProject = exports.getProjectById = exports.getProjects = exports.createProject = void 0;
 const project_service_1 = require("./project.service");
+const cache_service_1 = require("../../../common/services/cache.service");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 /**
  * 🧱 CODE BLOCK: Project HTTP Route Actions
@@ -26,6 +27,7 @@ const createProject = async (req, res) => {
         const userId = req.user.id;
         const files = req.files || [];
         const project = await project_service_1.ProjectService.createProject(userId, req.body, files);
+        cache_service_1.cacheStore.clear();
         return res.status(201).json({
             message: "Project created successfully",
             project,
@@ -72,6 +74,7 @@ const updateProject = async (req, res) => {
         }
         const files = req.files || [];
         const project = await project_service_1.ProjectService.updateProject(id, req.user.id, req.user.role, req.body, files);
+        cache_service_1.cacheStore.clear();
         return res.json({
             message: "Project updated successfully",
             project,
@@ -90,6 +93,7 @@ const toggleProjectStatus = async (req, res) => {
             return res.status(400).json({ message: "Project ID is required" });
         }
         const project = await project_service_1.ProjectService.toggleProjectStatus(id, req.user.id, req.user.role, req.body.status);
+        cache_service_1.cacheStore.clear();
         return res.json({
             message: "Project status updated successfully",
             project,
@@ -111,6 +115,7 @@ const changeProjectImage = async (req, res) => {
             return res.status(400).json({ message: "Missing required params (id, collection, publicId, file)" });
         }
         const project = await project_service_1.ProjectService.changeProjectImage(id, req.user.id, req.user.role, collection, publicId, file);
+        cache_service_1.cacheStore.clear();
         return res.json({
             message: "Project image changed successfully",
             project,
@@ -130,6 +135,7 @@ const deleteProjectImage = async (req, res) => {
             return res.status(400).json({ message: "Missing required parameters" });
         }
         const project = await project_service_1.ProjectService.deleteProjectImage(id, req.user.id, req.user.role, collection, publicId);
+        cache_service_1.cacheStore.clear();
         return res.json({
             message: "Project image deleted successfully",
             project,
@@ -148,6 +154,7 @@ const deleteProject = async (req, res) => {
             return res.status(400).json({ message: "Project ID is required" });
         }
         await project_service_1.ProjectService.deleteProject(id, req.user.id, req.user.role);
+        cache_service_1.cacheStore.clear();
         return res.json({ message: "Project deleted successfully" });
     }
     catch (error) {

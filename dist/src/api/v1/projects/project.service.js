@@ -91,20 +91,24 @@ const deleteCloudinaryFiles = async (publicIds) => {
  * PRINCIPLE       : SOLID
  */
 const canReadProject = (project, userId, role) => {
-    if (role === "admin")
+    const normalizedRole = String(role || "").trim().toLowerCase();
+    if (normalizedRole === "admin")
         return true;
     if (project.clientId === userId)
         return true;
     if (project.engineerId === userId)
         return true;
-    return Boolean(project.projectMembers?.some((m) => m.userId === userId));
+    return Boolean(project.projectMembers?.some((m) => m.userId === userId &&
+        m.status === "accepted" &&
+        (normalizedRole === "admin" || String(m.role).toLowerCase() === normalizedRole)));
 };
 const canUpdateProject = (project, userId, role) => {
-    if (role === "admin")
+    const normalizedRole = String(role || "").trim().toLowerCase();
+    if (normalizedRole === "admin")
         return true;
-    if (role === "client")
+    if (normalizedRole === "client")
         return project.clientId === userId;
-    if (role === "engineer")
+    if (normalizedRole === "engineer")
         return project.engineerId === userId;
     return false;
 };
@@ -185,25 +189,29 @@ class ProjectService {
      * ============================================================================
      */
     static async getProjects(role, userId) {
-        if (role === "client") {
+        const normalizedRole = String(role || "").trim().toLowerCase();
+        if (normalizedRole === "client") {
             return await db_js_1.default.project.findMany({
                 where: { clientId: userId },
                 include: projectListInclude,
                 orderBy: { createdAt: "desc" },
             });
         }
-        else if (role === "engineer") {
+        else if (normalizedRole === "engineer") {
             return await db_js_1.default.project.findMany({
                 where: {
-                    OR: [{ engineerId: userId }, { projectMembers: { some: { userId } } }],
+                    OR: [
+                        { engineerId: userId },
+                        { projectMembers: { some: { userId, role: "engineer", status: "accepted" } } },
+                    ],
                 },
                 include: projectListInclude,
                 orderBy: { createdAt: "desc" },
             });
         }
-        else if (role === "supervisor" || role === "supplier") {
+        else if (normalizedRole === "supervisor" || normalizedRole === "supplier") {
             return await db_js_1.default.project.findMany({
-                where: { projectMembers: { some: { userId } } },
+                where: { projectMembers: { some: { userId, role: normalizedRole, status: "accepted" } } },
                 include: projectListInclude,
                 orderBy: { createdAt: "desc" },
             });
