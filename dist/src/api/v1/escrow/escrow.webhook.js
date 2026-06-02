@@ -59,7 +59,7 @@ const handleStripeWebhook = async (req, res) => {
     if (event.type === "payment_intent.succeeded") {
         const paymentIntent = event.data.object;
         const { escrowAccountId, type } = paymentIntent.metadata;
-        const amount = paymentIntent.amount / 100; // Convert from cents
+        const amount = Number(paymentIntent.metadata?.amount || paymentIntent.amount / 100);
         if (!escrowAccountId || type !== "deposit") {
             logger_middleware_1.logger.warn(`Stripe webhook: Missing or invalid metadata on PaymentIntent ${paymentIntent.id}`);
             return res.json({ received: true });
@@ -74,26 +74,44 @@ const handleStripeWebhook = async (req, res) => {
                 logger_middleware_1.logger.error(`Stripe webhook: Escrow account ${escrowAccountId} not found`);
                 return res.status(404).json({ message: "Escrow account not found" });
             }
-            // 2. Apply deposit to balance atomically
-            await db_js_1.default.$transaction([
-                db_js_1.default.escrowAccount.update({
+            await db_js_1.default.$transaction(async (tx) => {
+                await tx.escrowAccount.update({
                     where: { id: escrowAccountId },
                     data: { balance: { increment: amount } },
-                }),
-                db_js_1.default.transaction.create({
-                    data: {
+                });
+                const pendingTransaction = await tx.transaction.findFirst({
+                    where: {
                         escrowAccountId,
-                        actorId: escrow.project.clientId, // Set actor to the client who owns the project
-                        type: "deposit",
-                        method: "bank_transfer",
-                        amount,
-                        status: "completed",
                         reference: paymentIntent.id,
-                        completedAt: new Date(),
-                        metadata: { provider: "stripe", paymentIntentId: paymentIntent.id },
+                        status: "pending",
                     },
-                }),
-            ]);
+                });
+                if (pendingTransaction) {
+                    await tx.transaction.update({
+                        where: { id: pendingTransaction.id },
+                        data: {
+                            status: "completed",
+                            completedAt: new Date(),
+                            metadata: { provider: "stripe", paymentIntentId: paymentIntent.id },
+                        },
+                    });
+                }
+                else {
+                    await tx.transaction.create({
+                        data: {
+                            escrowAccountId,
+                            actorId: escrow.project.clientId,
+                            type: "deposit",
+                            method: "bank_transfer",
+                            amount,
+                            status: "completed",
+                            reference: paymentIntent.id,
+                            completedAt: new Date(),
+                            metadata: { provider: "stripe", paymentIntentId: paymentIntent.id },
+                        },
+                    });
+                }
+            });
             await (0, notifications_js_1.notifyProjectParticipants)({
                 projectId: escrow.projectId,
                 excludeUserId: escrow.project.clientId,

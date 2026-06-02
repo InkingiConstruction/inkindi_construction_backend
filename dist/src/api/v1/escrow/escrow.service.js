@@ -19,6 +19,30 @@ exports.EscrowService = void 0;
 const stripe_1 = require("../../../integrations/stripe");
 const db_js_1 = __importDefault(require("../../../config/db.js"));
 const crypto_1 = __importDefault(require("crypto"));
+const ZERO_DECIMAL_CURRENCIES = new Set([
+    "bif",
+    "clp",
+    "djf",
+    "gnf",
+    "jpy",
+    "kmf",
+    "krw",
+    "mga",
+    "pyg",
+    "rwf",
+    "ugx",
+    "vnd",
+    "vuv",
+    "xaf",
+    "xof",
+    "xpf",
+]);
+const toStripeAmount = (amount, currency) => {
+    const normalizedCurrency = currency.toLowerCase();
+    return ZERO_DECIMAL_CURRENCIES.has(normalizedCurrency)
+        ? Math.round(amount)
+        : Math.round(amount * 100);
+};
 class EscrowService {
     /**
      * ============================================================================
@@ -33,13 +57,35 @@ class EscrowService {
      * PRINCIPLE: KISS, SOLID
      * ============================================================================
      */
-    static async createStripePaymentIntent(amount, currency, escrowAccountId) {
+    static async createStripePaymentIntent(amount, currency, escrowAccountId, actorId) {
+        const normalizedCurrency = currency.toLowerCase();
         const paymentIntent = await stripe_1.stripe.paymentIntents.create({
-            amount: Math.round(amount * 100), // Stripe expects cents
-            currency: currency.toLowerCase(),
+            amount: toStripeAmount(amount, normalizedCurrency),
+            currency: normalizedCurrency,
             metadata: {
                 escrowAccountId,
+                actorId,
+                amount: String(amount),
+                currency: normalizedCurrency,
                 type: "deposit",
+            },
+            automatic_payment_methods: {
+                enabled: true,
+            },
+        });
+        await db_js_1.default.transaction.create({
+            data: {
+                escrowAccountId,
+                actorId,
+                type: "deposit",
+                method: "bank_transfer",
+                amount,
+                status: "pending",
+                reference: paymentIntent.id,
+                metadata: {
+                    provider: "stripe",
+                    paymentIntentId: paymentIntent.id,
+                },
             },
         });
         return {

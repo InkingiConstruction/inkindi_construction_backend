@@ -15,6 +15,32 @@ import { stripe } from "../../../integrations/stripe";
 import prisma from "../../../config/db.js";
 import crypto from "crypto";
 
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  "bif",
+  "clp",
+  "djf",
+  "gnf",
+  "jpy",
+  "kmf",
+  "krw",
+  "mga",
+  "pyg",
+  "rwf",
+  "ugx",
+  "vnd",
+  "vuv",
+  "xaf",
+  "xof",
+  "xpf",
+]);
+
+const toStripeAmount = (amount: number, currency: string) => {
+  const normalizedCurrency = currency.toLowerCase();
+  return ZERO_DECIMAL_CURRENCIES.has(normalizedCurrency)
+    ? Math.round(amount)
+    : Math.round(amount * 100);
+};
+
 export class EscrowService {
   /**
    * ============================================================================
@@ -29,13 +55,36 @@ export class EscrowService {
    * PRINCIPLE: KISS, SOLID
    * ============================================================================
    */
-  static async createStripePaymentIntent(amount: number, currency: string, escrowAccountId: string) {
+  static async createStripePaymentIntent(amount: number, currency: string, escrowAccountId: string, actorId: string) {
+    const normalizedCurrency = currency.toLowerCase();
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Stripe expects cents
-      currency: currency.toLowerCase(),
+      amount: toStripeAmount(amount, normalizedCurrency),
+      currency: normalizedCurrency,
       metadata: {
         escrowAccountId,
+        actorId,
+        amount: String(amount),
+        currency: normalizedCurrency,
         type: "deposit",
+      },
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
+
+    await prisma.transaction.create({
+      data: {
+        escrowAccountId,
+        actorId,
+        type: "deposit",
+        method: "bank_transfer",
+        amount,
+        status: "pending",
+        reference: paymentIntent.id,
+        metadata: {
+          provider: "stripe",
+          paymentIntentId: paymentIntent.id,
+        },
       },
     });
 
