@@ -143,6 +143,12 @@ enum AssignmentStatus {
   removed
 }
 
+enum ProgressReviewStatus {
+  pending
+  approved
+  rejected
+}
+
 model User {
   id                  String    @id
   name                String
@@ -487,10 +493,15 @@ model ProgressPhoto {
   caption      String?
   isVideo      Boolean   @default(false)
   videoDuration Int?
+  reviewStatus ProgressReviewStatus @default(pending)
+  supervisorComment String?
+  reviewedById String?
+  reviewedAt DateTime?
   createdAt    DateTime  @default(now())
 
   @@index([projectId])
   @@index([milestoneId])
+  @@index([reviewStatus])
   @@index([createdAt])
   @@map("progress_photo")
 }

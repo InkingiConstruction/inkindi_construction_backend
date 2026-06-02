@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { UploadApiResponse } from "cloudinary";
-import { Prisma } from "@prisma/client";
+import { Prisma, ProgressReviewStatus } from "@prisma/client";
 import cloudinary from "../../../config/cloudinary.js";
 import prisma from "../../../config/db.js";
 
@@ -42,6 +42,27 @@ const parseJsonField = (value: unknown) => {
   } catch {
     return value;
   }
+};
+
+const isProgressReviewStatus = (value: unknown): value is ProgressReviewStatus =>
+  typeof value === "string" &&
+  Object.values(ProgressReviewStatus).includes(value as ProgressReviewStatus);
+
+const isAcceptedSupervisor = (
+  project: { projectMembers?: { userId: string; role: string; status: string }[] },
+  userId: string,
+  role: string,
+) => {
+  if (role === "admin") return true;
+  if (role !== "supervisor") return false;
+  return Boolean(
+    project.projectMembers?.some(
+      (member) =>
+        member.userId === userId &&
+        member.role === "supervisor" &&
+        member.status === "accepted",
+    ),
+  );
 };
 
 const canReadProject = (
@@ -208,6 +229,9 @@ export const getProgressPhotos = async (req: Request, res: Response) => {
       where: {
         ...(projectId ? { projectId } : {}),
         ...(milestoneId ? { milestoneId } : {}),
+        ...(req.user.role === "client"
+          ? { reviewStatus: { in: ["approved", "rejected"] } }
+          : {}),
         ...(req.user.role === "admin"
           ? {}
           : {
@@ -299,7 +323,7 @@ export const getProgressPhotoById = async (req: Request, res: Response) => {
 export const updateProgressPhoto = async (req: Request, res: Response) => {
   try {
     const id = getParamId(req.params.id);
-    const { milestoneId, gpsLocation, caption, videoDuration } = req.body;
+    const { milestoneId, gpsLocation, caption, videoDuration, reviewStatus, supervisorComment } = req.body;
     const files = (req.files as Express.Multer.File[]) || [];
     const file = files[0];
 
@@ -322,10 +346,22 @@ export const updateProgressPhoto = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Progress photo not found" });
     }
 
-    if (!canManageProgressPhoto(existingPhoto, req.user.id, req.user.role)) {
+    const reviewingProgress = reviewStatus !== undefined || supervisorComment !== undefined;
+
+    if (reviewingProgress && !isAcceptedSupervisor(existingPhoto.project, req.user.id, req.user.role)) {
+      return res.status(403).json({
+        message: "Only the assigned supervisor or admin can review progress media",
+      });
+    }
+
+    if (!reviewingProgress && !canManageProgressPhoto(existingPhoto, req.user.id, req.user.role)) {
       return res.status(403).json({
         message: "Only the uploader, project engineer, assigned supervisor, or admin can update this media",
       });
+    }
+
+    if (reviewStatus !== undefined && !isProgressReviewStatus(reviewStatus)) {
+      return res.status(400).json({ message: "Invalid progress review status" });
     }
 
     if (milestoneId) {
@@ -357,6 +393,14 @@ export const updateProgressPhoto = async (req: Request, res: Response) => {
     if (videoDuration !== undefined) {
       data.videoDuration = videoDuration ? Number(videoDuration) : null;
     }
+    if (reviewStatus !== undefined) {
+      data.reviewStatus = reviewStatus;
+      data.reviewedById = req.user.id;
+      data.reviewedAt = new Date();
+    }
+    if (supervisorComment !== undefined) {
+      data.supervisorComment = supervisorComment ? String(supervisorComment) : null;
+    }
 
     if (file) {
       const uploaded = await uploadMedia(file);
@@ -365,6 +409,10 @@ export const updateProgressPhoto = async (req: Request, res: Response) => {
       data.cloudinaryUrl = uploaded.secure_url;
       data.publicId = uploaded.public_id;
       data.isVideo = file.mimetype.startsWith("video/");
+      data.reviewStatus = "pending";
+      data.supervisorComment = null;
+      data.reviewedById = null;
+      data.reviewedAt = null;
     }
 
     const progressPhoto = await prisma.progressPhoto.update({
