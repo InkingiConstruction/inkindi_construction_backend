@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteProgressPhoto = exports.updateProgressPhoto = exports.getProgressPhotoById = exports.getProgressPhotos = exports.createProgressPhoto = void 0;
+const client_1 = require("@prisma/client");
 const cloudinary_js_1 = __importDefault(require("../../../config/cloudinary.js"));
 const db_js_1 = __importDefault(require("../../../config/db.js"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
@@ -36,6 +37,17 @@ const parseJsonField = (value) => {
     catch {
         return value;
     }
+};
+const isProgressReviewStatus = (value) => typeof value === "string" &&
+    Object.values(client_1.ProgressReviewStatus).includes(value);
+const isAcceptedSupervisor = (project, userId, role) => {
+    if (role === "admin")
+        return true;
+    if (role !== "supervisor")
+        return false;
+    return Boolean(project.projectMembers?.some((member) => member.userId === userId &&
+        member.role === "supervisor" &&
+        member.status === "accepted"));
 };
 const canReadProject = (project, userId, role) => {
     if (role === "admin")
@@ -154,6 +166,9 @@ const getProgressPhotos = async (req, res) => {
             where: {
                 ...(projectId ? { projectId } : {}),
                 ...(milestoneId ? { milestoneId } : {}),
+                ...(req.user.role === "client"
+                    ? { reviewStatus: { in: ["approved", "rejected"] } }
+                    : {}),
                 ...(req.user.role === "admin"
                     ? {}
                     : {
@@ -241,7 +256,7 @@ exports.getProgressPhotoById = getProgressPhotoById;
 const updateProgressPhoto = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
-        const { milestoneId, gpsLocation, caption, videoDuration } = req.body;
+        const { milestoneId, gpsLocation, caption, videoDuration, reviewStatus, supervisorComment } = req.body;
         const files = req.files || [];
         const file = files[0];
         if (!id) {
@@ -260,10 +275,19 @@ const updateProgressPhoto = async (req, res) => {
         if (!existingPhoto) {
             return res.status(404).json({ message: "Progress photo not found" });
         }
-        if (!canManageProgressPhoto(existingPhoto, req.user.id, req.user.role)) {
+        const reviewingProgress = reviewStatus !== undefined || supervisorComment !== undefined;
+        if (reviewingProgress && !isAcceptedSupervisor(existingPhoto.project, req.user.id, req.user.role)) {
+            return res.status(403).json({
+                message: "Only the assigned supervisor or admin can review progress media",
+            });
+        }
+        if (!reviewingProgress && !canManageProgressPhoto(existingPhoto, req.user.id, req.user.role)) {
             return res.status(403).json({
                 message: "Only the uploader, project engineer, assigned supervisor, or admin can update this media",
             });
+        }
+        if (reviewStatus !== undefined && !isProgressReviewStatus(reviewStatus)) {
+            return res.status(400).json({ message: "Invalid progress review status" });
         }
         if (milestoneId) {
             const milestone = await db_js_1.default.milestone.findFirst({
@@ -293,6 +317,14 @@ const updateProgressPhoto = async (req, res) => {
         if (videoDuration !== undefined) {
             data.videoDuration = videoDuration ? Number(videoDuration) : null;
         }
+        if (reviewStatus !== undefined) {
+            data.reviewStatus = reviewStatus;
+            data.reviewedById = req.user.id;
+            data.reviewedAt = new Date();
+        }
+        if (supervisorComment !== undefined) {
+            data.supervisorComment = supervisorComment ? String(supervisorComment) : null;
+        }
         if (file) {
             const uploaded = await uploadMedia(file);
             oldPublicId = existingPhoto.publicId;
@@ -300,6 +332,10 @@ const updateProgressPhoto = async (req, res) => {
             data.cloudinaryUrl = uploaded.secure_url;
             data.publicId = uploaded.public_id;
             data.isVideo = file.mimetype.startsWith("video/");
+            data.reviewStatus = "pending";
+            data.supervisorComment = null;
+            data.reviewedById = null;
+            data.reviewedAt = null;
         }
         const progressPhoto = await db_js_1.default.progressPhoto.update({
             where: { id },
