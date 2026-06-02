@@ -44,29 +44,53 @@ const createToken = (user: { id: string; role?: string | null }) =>
 
 const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
 
-const getRegistrationConflictMessage = (error: unknown) => {
-  if (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2002"
-  ) {
-    const target = Array.isArray(error.meta?.target)
-      ? error.meta.target.map(String)
-      : [];
-
-    if (target.includes("email")) {
-      return "Email is already registered";
-    }
-
-    if (target.includes("phoneNumber")) {
-      return "Phone number is already registered";
-    }
-
-    if (target.includes("username")) {
-      return "Username is already registered";
-    }
+const errorContains = (error: unknown, needle: string): boolean => {
+  if (!error) {
+    return false;
   }
 
-  return null;
+  if (typeof error === "string") {
+    return error.toLowerCase().includes(needle.toLowerCase());
+  }
+
+  if (typeof error !== "object") {
+    return false;
+  }
+
+  const record = error as Record<string, unknown>;
+
+  return Object.values(record).some((value) => errorContains(value, needle));
+};
+
+const getRegistrationConflictMessage = (error: unknown) => {
+  const record = error as { code?: unknown; meta?: { target?: unknown } };
+  const isUniqueConflict =
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002") ||
+    record?.code === "P2002" ||
+    errorContains(error, "23505");
+
+  if (!isUniqueConflict) {
+    return null;
+  }
+
+  const target = Array.isArray(record.meta?.target)
+    ? record.meta.target.map(String)
+    : [];
+
+  if (target.includes("email") || errorContains(error, "email")) {
+    return "Email is already registered";
+  }
+
+  if (target.includes("phoneNumber") || errorContains(error, "phoneNumber")) {
+    return "Phone number is already registered";
+  }
+
+  if (target.includes("username") || errorContains(error, "username")) {
+    return "Email username is already registered. Use another email address.";
+  }
+
+  return "This account already exists";
 };
 
 const sendVerificationOtp = async (user: { id: string; email: string }) => {
@@ -148,6 +172,17 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const username = email.includes("@") ? email.split("@")[0] : email;
+
+    const existingUsername = await prisma.user.findUnique({
+      where: { username },
+    });
+
+    if (existingUsername) {
+      return res
+        .status(409)
+        .json({ message: "Email username is already registered. Use another email address." });
+    }
+
     const passwordHash = await hashPassword(password);
 
     const user = await prisma.user.create({

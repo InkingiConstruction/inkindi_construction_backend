@@ -39,23 +39,41 @@ const sanitizeRole = (role) => {
 };
 const createToken = (user) => (0, mobile_jwt_js_1.createMobileJwt)({ sub: user.id, role: user.role });
 const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
-const getRegistrationConflictMessage = (error) => {
-    if (error instanceof client_1.Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002") {
-        const target = Array.isArray(error.meta?.target)
-            ? error.meta.target.map(String)
-            : [];
-        if (target.includes("email")) {
-            return "Email is already registered";
-        }
-        if (target.includes("phoneNumber")) {
-            return "Phone number is already registered";
-        }
-        if (target.includes("username")) {
-            return "Username is already registered";
-        }
+const errorContains = (error, needle) => {
+    if (!error) {
+        return false;
     }
-    return null;
+    if (typeof error === "string") {
+        return error.toLowerCase().includes(needle.toLowerCase());
+    }
+    if (typeof error !== "object") {
+        return false;
+    }
+    const record = error;
+    return Object.values(record).some((value) => errorContains(value, needle));
+};
+const getRegistrationConflictMessage = (error) => {
+    const record = error;
+    const isUniqueConflict = (error instanceof client_1.Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002") ||
+        record?.code === "P2002" ||
+        errorContains(error, "23505");
+    if (!isUniqueConflict) {
+        return null;
+    }
+    const target = Array.isArray(record.meta?.target)
+        ? record.meta.target.map(String)
+        : [];
+    if (target.includes("email") || errorContains(error, "email")) {
+        return "Email is already registered";
+    }
+    if (target.includes("phoneNumber") || errorContains(error, "phoneNumber")) {
+        return "Phone number is already registered";
+    }
+    if (target.includes("username") || errorContains(error, "username")) {
+        return "Email username is already registered. Use another email address.";
+    }
+    return "This account already exists";
 };
 const sendVerificationOtp = async (user) => {
     const otp = generateOtp();
@@ -120,6 +138,14 @@ const register = async (req, res) => {
             }
         }
         const username = email.includes("@") ? email.split("@")[0] : email;
+        const existingUsername = await db_js_1.default.user.findUnique({
+            where: { username },
+        });
+        if (existingUsername) {
+            return res
+                .status(409)
+                .json({ message: "Email username is already registered. Use another email address." });
+        }
         const passwordHash = await (0, password_js_1.hashPassword)(password);
         const user = await db_js_1.default.user.create({
             data: {
