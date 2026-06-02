@@ -50,7 +50,10 @@ const sendVerificationOtp = async (user) => {
         },
     });
     const template = (0, email_tempelates_js_1.emailVerificationTemplate)(otp);
-    await (0, resend_js_1.sendEmail)({ to: user.email, ...template });
+    const sent = await (0, resend_js_1.sendEmail)({ to: user.email, ...template });
+    if (!sent && process.env.NODE_ENV !== "production") {
+        console.log(`Email verification OTP for ${user.email}: ${otp}`);
+    }
 };
 const sendPasswordResetOtp = async (user) => {
     const otp = generateOtp();
@@ -64,7 +67,10 @@ const sendPasswordResetOtp = async (user) => {
         },
     });
     const template = (0, email_tempelates_js_1.passwordResetTemplate)(otp);
-    await (0, resend_js_1.sendEmail)({ to: user.email, ...template });
+    const sent = await (0, resend_js_1.sendEmail)({ to: user.email, ...template });
+    if (!sent && process.env.NODE_ENV !== "production") {
+        console.log(`Password reset OTP for ${user.email}: ${otp}`);
+    }
 };
 const register = async (req, res) => {
     try {

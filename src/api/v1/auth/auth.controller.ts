@@ -57,7 +57,11 @@ const sendVerificationOtp = async (user: { id: string; email: string }) => {
   });
 
   const template = emailVerificationTemplate(otp);
-  await sendEmail({ to: user.email, ...template });
+  const sent = await sendEmail({ to: user.email, ...template });
+
+  if (!sent && process.env.NODE_ENV !== "production") {
+    console.log(`Email verification OTP for ${user.email}: ${otp}`);
+  }
 };
 
 const sendPasswordResetOtp = async (user: { id: string; email: string }) => {
@@ -74,7 +78,11 @@ const sendPasswordResetOtp = async (user: { id: string; email: string }) => {
   });
 
   const template = passwordResetTemplate(otp);
-  await sendEmail({ to: user.email, ...template });
+  const sent = await sendEmail({ to: user.email, ...template });
+
+  if (!sent && process.env.NODE_ENV !== "production") {
+    console.log(`Password reset OTP for ${user.email}: ${otp}`);
+  }
 };
 
 export const register = async (req: Request, res: Response) => {

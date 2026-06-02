@@ -2,9 +2,10 @@ interface EmailOptions {
   to: string;
   subject: string;
   html: string;
+  text?: string;
 }
 
-export const sendEmail = async ({ to, subject, html }: EmailOptions) => {
+export const sendEmail = async ({ to, subject, html, text }: EmailOptions) => {
   try {
     const apiKey = process.env.BREVO_API_KEY;
     const senderEmail = process.env.BREVO_SENDER_EMAIL;
@@ -12,12 +13,12 @@ export const sendEmail = async ({ to, subject, html }: EmailOptions) => {
 
     if (!apiKey) {
       console.error("Email error: BREVO_API_KEY is not configured");
-      return;
+      return false;
     }
 
     if (!senderEmail) {
       console.error("Email error: BREVO_SENDER_EMAIL is not configured");
-      return;
+      return false;
     }
 
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -35,6 +36,7 @@ export const sendEmail = async ({ to, subject, html }: EmailOptions) => {
         to: [{ email: to }],
         subject,
         htmlContent: html,
+        ...(text ? { textContent: text } : {}),
       }),
     });
 
@@ -46,11 +48,13 @@ export const sendEmail = async ({ to, subject, html }: EmailOptions) => {
         status: response.status,
         response: responseBody,
       });
-      return;
+      return false;
     }
 
     console.log("Email sent to:", to);
+    return true;
   } catch (error) {
     console.error("Email error:", error);
+    return false;
   }
 };
