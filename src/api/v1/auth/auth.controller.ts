@@ -188,12 +188,16 @@ export const register = async (req: Request, res: Response) => {
       select: selectUser,
     });
 
-    await sendVerificationOtp(user).catch((error) => {
+    const otpSent = await sendVerificationOtp(user).catch((error) => {
       console.error("Send registration OTP error:", error);
+      return false;
     });
 
     return res.status(201).json({
-      message: "Registered successfully",
+      message: otpSent
+        ? "Registered successfully. Verification email sent."
+        : "Registered successfully. Verification email could not be sent. Please use resend code.",
+      otpSent,
       token: createToken(user),
       user,
     });
