@@ -27,9 +27,15 @@ const canReadMilestones = (project, userId, role) => {
         return true;
     return Boolean(project.projectMembers?.some((m) => m.userId === userId && m.status === "accepted"));
 };
-const canManageMilestone = (milestone, userId, role) => {
+const canManageMilestone = (milestone, userId, role, body) => {
     if (role === "admin")
         return true;
+    if (role === "client") {
+        const onlyRequestsRevision = milestone.project.clientId === userId &&
+            body?.status === "revision_required" &&
+            Object.keys(body).every((key) => ["status", "revisionNotes", "clientNotes"].includes(key));
+        return onlyRequestsRevision;
+    }
     if (role === "engineer")
         return milestone.engineerId === userId;
     if (role === "supervisor") {
@@ -152,7 +158,7 @@ class MilestoneService {
         });
         if (!existing)
             throw new Error("Milestone not found");
-        if (!canManageMilestone(existing, userId, userRole))
+        if (!canManageMilestone(existing, userId, userRole, body))
             throw new Error("Forbidden");
         if (body.dependsOn) {
             const dep = await db_js_1.default.milestone.findFirst({

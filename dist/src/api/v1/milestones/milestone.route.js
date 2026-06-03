@@ -8,6 +8,6 @@ const router = (0, express_1.Router)();
 router.post("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("engineer", "admin"), milestone_controller_1.createMilestone);
 router.get("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "admin"), milestone_controller_1.getMilestones);
 router.get("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "admin"), milestone_controller_1.getMilestoneById);
-router.put("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("engineer", "supervisor", "admin"), milestone_controller_1.updateMilestone);
+router.put("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "admin"), milestone_controller_1.updateMilestone);
 router.delete("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("engineer", "admin"), milestone_controller_1.deleteMilestone);
 exports.default = router;
