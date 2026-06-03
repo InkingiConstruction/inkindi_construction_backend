@@ -249,10 +249,15 @@ model Project {
   id                 String        @id @default(cuid())
   name               String
   description        String?
+  category           String?
   status             ProjectStatus @default(draft)
   budget             Decimal       @db.Decimal(15, 2)
   currency           String        @default("RWF")
   address            String?
+  area               Decimal?      @db.Decimal(15, 2)
+  upi                String?
+  ownerName          String?
+  landUse            String?
   gpsBoundary        Json?
   sitePhotos         Json          @default("[]")
   architecturalPlans Json          @default("[]")

@@ -1,0 +1,6 @@
+ALTER TABLE "project"
+ADD COLUMN "category" TEXT,
+ADD COLUMN "area" DECIMAL(15, 2),
+ADD COLUMN "upi" TEXT,
+ADD COLUMN "ownerName" TEXT,
+ADD COLUMN "landUse" TEXT;
