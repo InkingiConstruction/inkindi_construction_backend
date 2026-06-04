@@ -22,6 +22,7 @@ import rfqRoutes from "./rfqs/rfq.route";
 import purchaseOrderRoutes from "./rfqs/purchase-order.route";
 import quoteRoutes from "./quotes/quote.route";
 import deliveryRoutes from "./deliveries/delivery.route";
+import supplierInventoryRoutes from "./suppliers/inventory.route";
 
 import inspectionRoutes from "./inspections/inspection.route";
 
@@ -61,6 +62,7 @@ router.use("/rfqs", rfqRoutes);
 router.use("/quotes", quoteRoutes);
 router.use("/purchase-orders", purchaseOrderRoutes);
 router.use("/deliveries", deliveryRoutes);
+router.use("/supplier-inventory", supplierInventoryRoutes);
 
 router.use("/inspections", inspectionRoutes);
 

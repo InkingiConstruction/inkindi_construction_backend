@@ -192,6 +192,7 @@ model User {
   milestonesCreated    Milestone[]
   rfqsCreated          Rfq[]
   quotesSubmitted      Quote[]
+  supplierInventory    SupplierInventoryItem[]
   purchaseOrders       PurchaseOrder[]
   deliveries           Delivery[]
   progressPhotos       ProgressPhoto[]
@@ -352,7 +353,7 @@ model Milestone {
   engineer           User            @relation(fields: [engineerId], references: [id])
   name               String
   description        String?
-  budgetPercentage   Decimal         @db.Decimal(5, 2)
+  budgetPercentage   Decimal         @default(0) @db.Decimal(5, 2)
   durationDays       Int?
   acceptanceCriteria String?
   dependsOn          String?
@@ -380,6 +381,8 @@ model BoqItem {
   id          String    @id @default(cuid())
   milestoneId String
   milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  supplierInventoryItemId String?
+  supplierInventoryItem SupplierInventoryItem? @relation(fields: [supplierInventoryItemId], references: [id])
   category    String
   name        String
   quantity    Decimal   @db.Decimal(10, 2)
@@ -392,7 +395,30 @@ model BoqItem {
   updatedAt   DateTime  @updatedAt
 
   @@index([milestoneId])
+  @@index([supplierInventoryItemId])
   @@map("boq_item")
+}
+
+model SupplierInventoryItem {
+  id          String   @id @default(cuid())
+  supplierId  String
+  supplier    User     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  category    String
+  name        String
+  unit        String
+  unitPrice   Decimal  @db.Decimal(15, 2)
+  deliveryFee Decimal? @db.Decimal(15, 2)
+  available   Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  boqItems BoqItem[]
+
+  @@index([supplierId])
+  @@index([category])
+  @@index([available])
+  @@map("supplier_inventory_item")
 }
 
 model Rfq {
