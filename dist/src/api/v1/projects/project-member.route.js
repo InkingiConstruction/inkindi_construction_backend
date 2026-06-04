@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const project_member_controller_1 = require("./project-member.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const role_middleware_1 = require("../middleware/role.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "admin"), project_member_controller_1.createProjectMember);
+router.get("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), project_member_controller_1.getProjectMembers);
+router.post("/:id/accept", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("engineer", "supervisor", "admin"), project_member_controller_1.acceptProjectMember);
+router.post("/:id/reject", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("engineer", "supervisor", "admin"), project_member_controller_1.rejectProjectMember);
+router.get("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), project_member_controller_1.getProjectMemberById);
+router.put("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), project_member_controller_1.updateProjectMember);
+router.delete("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "admin"), project_member_controller_1.deleteProjectMember);
+exports.default = router;

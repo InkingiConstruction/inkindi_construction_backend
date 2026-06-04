@@ -4,7 +4,7 @@
  * ============================================================================
  * FILE NAME        : app.ts
  * WHAT THIS FILE DOES : Main application server configuration and global middleware registry
- * HOW IT DOES IT      : Instantiates Express, configures Gzip compression, request logs, CORS, Better Auth, and API routing
+ * HOW IT DOES IT      : Instantiates Express, configures Gzip compression, request logs, CORS, and API routing
  * DATA SOURCE         : Client HTTP Requests
  * DATA DESTINATION    : HTTP Response streams
  * PRINCIPLE APPLIED   : SOLID (Centralized bootstrapping layer)
@@ -15,10 +15,10 @@ import "dotenv/config";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import compression from "compression";
-import { toNodeHandler } from "better-auth/node";
-import { auth } from "./config/auth";
 import v1Routes from "./api/v1";
 import { requestLoggerMiddleware, logger } from "./common/middleware/logger.middleware";
+import { startWalletWorker } from "./queues/wallet.queue";
+
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -40,8 +40,12 @@ const envAllowedOrigins = (process.env.CORS_ORIGINS || "")
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "http://localhost:8081",
   "http://192.168.1.171:8081",
+  "https://inkindi-construction-backend.onrender.com",
+  process.env.BACKEND_URL,
+  process.env.RENDER_EXTERNAL_URL,
   process.env.FRONTEND_URL,
   process.env.MOBILE_URL,
   ...envAllowedOrigins,
@@ -49,6 +53,7 @@ const allowedOrigins = [
 
 const devOriginPattern =
   /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/;
+const mobileOriginPattern = /^(inkindiapp|exp):\/\/.*/;
 
 /**
  * ============================================================================
@@ -65,6 +70,7 @@ const devOriginPattern =
 function isAllowedOrigin(origin: string): boolean {
   return (
     allowedOrigins.includes(origin) ||
+    mobileOriginPattern.test(origin) ||
     (!isProduction && devOriginPattern.test(origin))
   );
 }
@@ -85,23 +91,13 @@ app.use(
         callback(null, true);
       } else {
         logger.warn(`Blocked origin attempt: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
+        callback(null, false);
       }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   }),
 );
-
-// 4. Authentication Gateways & Handlers
-app.use("/api/v1/auth", (req, _res, next) => {
-  if (!isProduction && !req.headers.origin) {
-    req.headers.origin = process.env.BETTER_AUTH_URL || "http://localhost:3000";
-  }
-  next();
-});
-
-app.all("/api/v1/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
 
@@ -117,6 +113,7 @@ app.use("/api/v1", v1Routes);
 app.listen(Number(port), "0.0.0.0", () => {
   logger.info(`Server successfully bootstrapped at http://0.0.0.0:${port}`);
   logger.info(`Swagger REST API Documentation active at http://localhost:${port}/api/v1/docs`);
+  startWalletWorker();
 });
 
 export default app;

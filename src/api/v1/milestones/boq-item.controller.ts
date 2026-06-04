@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import prisma from "../../../config/db.js";
+import { notifyProjectParticipants } from "../../../lib/notifications.js";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -145,6 +146,18 @@ export const createBoqItem = async (req: Request, res: Response) => {
       },
     });
 
+    await notifyProjectParticipants({
+      projectId: boqItem.milestone.projectId,
+      excludeUserId: req.user.id,
+      title: "BOQ item added",
+      body: `${boqItem.name} was added to ${boqItem.milestone.name}`,
+      data: {
+        type: "boq_item_created",
+        boqItemId: boqItem.id,
+        milestoneId: boqItem.milestoneId,
+      },
+    });
+
     return res.status(201).json({
       message: "BOQ item created successfully",
       boqItem,
@@ -285,6 +298,18 @@ export const updateBoqItem = async (req: Request, res: Response) => {
       },
     });
 
+    await notifyProjectParticipants({
+      projectId: boqItem.milestone.projectId,
+      excludeUserId: req.user.id,
+      title: "BOQ item updated",
+      body: `${boqItem.name} was updated in ${boqItem.milestone.name}`,
+      data: {
+        type: "boq_item_updated",
+        boqItemId: boqItem.id,
+        milestoneId: boqItem.milestoneId,
+      },
+    });
+
     return res.json({
       message: "BOQ item updated successfully",
       boqItem,
@@ -322,6 +347,18 @@ export const deleteBoqItem = async (req: Request, res: Response) => {
 
     await prisma.boqItem.delete({
       where: { id },
+    });
+
+    await notifyProjectParticipants({
+      projectId: boqItem.milestone.projectId,
+      excludeUserId: req.user.id,
+      title: "BOQ item removed",
+      body: `${boqItem.name} was removed from the BOQ`,
+      data: {
+        type: "boq_item_deleted",
+        boqItemId: boqItem.id,
+        milestoneId: boqItem.milestoneId,
+      },
     });
 
     return res.json({ message: "BOQ item deleted successfully" });

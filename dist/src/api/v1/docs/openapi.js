@@ -1,3 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.openApiDocument = void 0;
 const allRoles = ["client", "engineer", "supervisor", "supplier", "admin"];
 const modelRoutes = [
     {
@@ -11,39 +14,6 @@ const modelRoutes = [
             delete: ["admin"],
         },
         multipart: true,
-    },
-    {
-        base: "/sessions",
-        tag: "Sessions",
-        name: "Session",
-        roles: {
-            create: ["admin"],
-            read: ["admin"],
-            update: ["admin"],
-            delete: ["admin"],
-        },
-    },
-    {
-        base: "/accounts",
-        tag: "Accounts",
-        name: "Account",
-        roles: {
-            create: ["admin"],
-            read: ["admin"],
-            update: ["admin"],
-            delete: ["admin"],
-        },
-    },
-    {
-        base: "/verifications",
-        tag: "Verifications",
-        name: "Verification",
-        roles: {
-            create: ["admin"],
-            read: ["admin"],
-            update: ["admin"],
-            delete: ["admin"],
-        },
     },
     {
         base: "/projects",
@@ -287,69 +257,56 @@ const modelRoutes = [
     },
 ];
 const authRoutes = [
-    ["get", "/auth/ok", "Check Better Auth status"],
-    ["post", "/auth/sign-up/email", "Sign up with email and password"],
-    ["post", "/auth/sign-in/email", "Sign in with email and password"],
-    ["post", "/auth/sign-in/social", "Start social sign-in flow"],
-    ["get", "/auth/callback/{id}", "OAuth callback route"],
-    ["post", "/auth/sign-out", "Sign out current user"],
-    ["get", "/auth/get-session", "Get current session"],
-    ["post", "/auth/get-session", "Get current session"],
-    ["get", "/auth/list-sessions", "List current user sessions"],
-    ["post", "/auth/revoke-session", "Revoke one session"],
-    ["post", "/auth/revoke-sessions", "Revoke all current user sessions"],
-    ["post", "/auth/revoke-other-sessions", "Revoke other sessions"],
-    ["post", "/auth/update-session", "Update current session data"],
-    ["post", "/auth/update-user", "Update current user"],
-    ["post", "/auth/change-password", "Change current user password"],
-    ["post", "/auth/change-email", "Change current user email"],
-    ["post", "/auth/delete-user", "Request or delete current user"],
-    ["get", "/auth/delete-user/callback", "Delete user callback route"],
-    ["post", "/auth/request-password-reset", "Request password reset email"],
-    ["get", "/auth/reset-password/{token}", "Password reset callback route"],
-    ["post", "/auth/reset-password", "Reset password"],
-    ["post", "/auth/verify-password", "Verify current password"],
-    ["post", "/auth/send-verification-email", "Send verification email"],
-    ["get", "/auth/verify-email", "Verify email address"],
-    ["get", "/auth/list-accounts", "List linked accounts"],
-    ["post", "/auth/link-social", "Link a social account"],
-    ["post", "/auth/unlink-account", "Unlink an account"],
-    ["get", "/auth/get-access-token", "Get account access token"],
-    ["post", "/auth/refresh-token", "Refresh account token"],
-    ["get", "/auth/account-info", "Get linked account info"],
-    ["get", "/auth/error", "Better Auth error route"],
-    ["post", "/auth/sign-in/username", "Sign in with username and password"],
-    ["post", "/auth/is-username-available", "Check username availability"],
-    ["post", "/auth/sign-in/phone-number", "Sign in with phone number"],
-    ["post", "/auth/phone-number/send-otp", "Send phone verification OTP"],
-    ["post", "/auth/phone-number/verify", "Verify phone number OTP"],
     [
         "post",
-        "/auth/phone-number/request-password-reset",
-        "Request phone password reset",
+        "/auth/register",
+        "Register with email and password",
+        {
+            email: "client@example.com",
+            password: "SecurePassword123!",
+            name: "Jean Bosco",
+            role: "client",
+            phoneNumber: "+250788123456"
+        }
     ],
-    ["post", "/auth/phone-number/reset-password", "Reset password with OTP"],
-    ["post", "/auth/admin/set-role", "Set a user's role"],
-    ["get", "/auth/admin/get-user", "Get one user"],
-    ["post", "/auth/admin/create-user", "Create a user"],
-    ["post", "/auth/admin/update-user", "Update a user"],
-    ["get", "/auth/admin/list-users", "List users"],
-    ["post", "/auth/admin/list-user-sessions", "List sessions for a user"],
-    ["post", "/auth/admin/ban-user", "Ban a user"],
-    ["post", "/auth/admin/unban-user", "Unban a user"],
-    ["post", "/auth/admin/impersonate-user", "Impersonate a user"],
-    ["post", "/auth/admin/stop-impersonating", "Stop impersonating"],
-    ["post", "/auth/admin/revoke-user-session", "Revoke one user session"],
-    ["post", "/auth/admin/revoke-user-sessions", "Revoke all user sessions"],
-    ["post", "/auth/admin/remove-user", "Remove a user"],
-    ["post", "/auth/admin/set-user-password", "Set a user's password"],
-    ["post", "/auth/admin/has-permission", "Check admin permissions"],
-].map(([method, path, summary]) => ({
-    method: method,
-    path,
-    tag: "Auth",
-    summary,
-}));
+    [
+        "post",
+        "/auth/login",
+        "Login with email and password",
+        {
+            email: "client@example.com",
+            password: "SecurePassword123!"
+        }
+    ],
+    [
+        "post",
+        "/auth/verify-email",
+        "Verify email OTP",
+        {
+            email: "client@example.com",
+            otp: "123456"
+        }
+    ],
+    [
+        "post",
+        "/auth/resend-otp",
+        "Resend email OTP",
+        {
+            email: "client@example.com"
+        }
+    ],
+    ["get", "/auth/me", "Get current authenticated user"],
+    ["post", "/auth/logout", "Logout current user"],
+].map((item) => {
+    const [method, path, summary, body] = item;
+    return {
+        method: method,
+        path,
+        tag: "Auth",
+        summary,
+        body,
+    };
+});
 const customRoutes = [
     {
         method: "get",
@@ -435,6 +392,29 @@ const customRoutes = [
         summary: "Reject a project assignment",
         roles: ["engineer", "admin"],
     },
+    {
+        method: "post",
+        path: "/escrow-accounts/{id}/deposit-stripe",
+        tag: "Escrow Accounts",
+        summary: "Initialize a Stripe deposit for an escrow account",
+        roles: ["client"],
+        body: { amount: 5000, currency: "usd" }
+    },
+    {
+        method: "post",
+        path: "/escrow-accounts/{id}/deposit-mtn",
+        tag: "Escrow Accounts",
+        summary: "Initialize an MTN Momo deposit for an escrow account",
+        roles: ["client"],
+        body: { amount: 100000, phoneNumber: "+250788123456" }
+    },
+    {
+        method: "post",
+        path: "/escrow-accounts/webhooks/stripe",
+        tag: "Escrow Accounts",
+        summary: "Stripe webhook callback handler",
+        roles: []
+    }
 ];
 const crudRoutes = modelRoutes.flatMap((route) => [
     {
@@ -481,7 +461,32 @@ const createRequestBody = (route) => {
     if (!route.multipart && !route.body && !["post", "put", "patch"].includes(route.method)) {
         return undefined;
     }
+    const generateSchemaProperties = (bodyObj) => {
+        if (!bodyObj)
+            return undefined;
+        const properties = {};
+        for (const [key, value] of Object.entries(bodyObj)) {
+            const valType = typeof value;
+            if (valType === "number") {
+                properties[key] = { type: "number", example: value };
+            }
+            else if (valType === "boolean") {
+                properties[key] = { type: "boolean", example: value };
+            }
+            else if (Array.isArray(value)) {
+                properties[key] = { type: "array", items: { type: "string" }, example: value };
+            }
+            else if (value && valType === "object") {
+                properties[key] = { type: "object", example: value };
+            }
+            else {
+                properties[key] = { type: "string", example: value };
+            }
+        }
+        return properties;
+    };
     if (route.multipart) {
+        const customProps = generateSchemaProperties(route.body) || {};
         return {
             required: false,
             content: {
@@ -490,7 +495,7 @@ const createRequestBody = (route) => {
                         type: "object",
                         additionalProperties: true,
                         properties: {
-                            ...(route.body || {}),
+                            ...customProps,
                             files: {
                                 type: "array",
                                 items: {
@@ -511,6 +516,7 @@ const createRequestBody = (route) => {
                 schema: {
                     type: "object",
                     additionalProperties: true,
+                    properties: generateSchemaProperties(route.body),
                     example: route.body || {},
                 },
             },
@@ -572,7 +578,7 @@ const paths = routes.reduce((result, route) => {
     };
     return result;
 }, {});
-export const openApiDocument = {
+exports.openApiDocument = {
     openapi: "3.0.3",
     info: {
         title: "Inkingi Construction API",
@@ -580,6 +586,10 @@ export const openApiDocument = {
         description: "Versioned REST API documentation for Inkingi Construction backend.",
     },
     servers: [
+        {
+            url: "https://inkindi-construction-backend.onrender.com/api/v1",
+            description: "Production",
+        },
         {
             url: "http://localhost:3000/api/v1",
             description: "Local development",
@@ -590,11 +600,6 @@ export const openApiDocument = {
     ].map((name) => ({ name })),
     components: {
         securitySchemes: {
-            cookieAuth: {
-                type: "apiKey",
-                in: "cookie",
-                name: "better-auth.session_token",
-            },
             bearerAuth: {
                 type: "http",
                 scheme: "bearer",

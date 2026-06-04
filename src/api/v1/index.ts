@@ -1,12 +1,10 @@
 import { Router } from "express";
 import swaggerRoutes from "./docs/swagger.route";
 
-import sessionRoutes from "./auth/session.route";
-import verificationRoutes from "./auth/verification.route";
+import authRoutes from "./auth/auth.route";
 import apiKeyRoutes from "./auth/api-key.route";
 
 import userRoutes from "./users/user.route";
-import accountRoutes from "./users/account.route";
 
 import kycRoutes from "./kyc/kyc.route";
 
@@ -42,12 +40,10 @@ const router = Router();
 
 router.use("/", swaggerRoutes);
 
-router.use("/sessions", sessionRoutes);
-router.use("/verifications", verificationRoutes);
+router.use("/auth", authRoutes);
 router.use("/api-keys", apiKeyRoutes);
 
 router.use("/users", userRoutes);
-router.use("/accounts", accountRoutes);
 
 router.use("/kyc", kycRoutes);
 

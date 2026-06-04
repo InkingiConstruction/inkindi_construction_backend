@@ -6,6 +6,7 @@ import {
   TransactionType,
 } from "@prisma/client";
 import prisma from "../../../config/db.js";
+import { notifyProjectParticipants } from "../../../lib/notifications.js";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -400,6 +401,23 @@ export const createTransaction = async (req: Request, res: Response) => {
       };
     });
 
+    await notifyProjectParticipants({
+      projectId: escrowAccount.projectId,
+      excludeUserId: req.user.id,
+      title:
+        transaction.status === "completed"
+          ? "Payment completed"
+          : "Payment activity created",
+      body: `${transaction.type} transaction of ${transaction.amount.toString()} ${escrowAccount.project.currency} is ${transaction.status}`,
+      data: {
+        type: "transaction_created",
+        transactionId: transaction.id,
+        transactionType: transaction.type,
+        status: transaction.status,
+        milestoneId: transaction.milestoneId,
+      },
+    });
+
     return res.status(201).json({
       message: "Transaction created successfully",
       transaction,
@@ -570,7 +588,11 @@ export const updateTransaction = async (req: Request, res: Response) => {
     const existingTransaction = await prisma.transaction.findUnique({
       where: { id },
       include: {
-        escrowAccount: true,
+        escrowAccount: {
+          include: {
+            project: true,
+          },
+        },
         milestone: true,
       },
     });
@@ -685,6 +707,25 @@ export const updateTransaction = async (req: Request, res: Response) => {
         },
       });
     });
+
+    if (status !== undefined) {
+      await notifyProjectParticipants({
+        projectId: existingTransaction.escrowAccount.projectId,
+        excludeUserId: req.user.id,
+        title:
+          transaction.status === "completed"
+            ? "Payment completed"
+            : "Payment status updated",
+        body: `${transaction.type} transaction of ${transaction.amount.toString()} ${existingTransaction.escrowAccount.project.currency} is ${transaction.status}`,
+        data: {
+          type: "transaction_status_updated",
+          transactionId: transaction.id,
+          transactionType: transaction.type,
+          status: transaction.status,
+          milestoneId: transaction.milestoneId,
+        },
+      });
+    }
 
     return res.json({
       message: "Transaction updated successfully",

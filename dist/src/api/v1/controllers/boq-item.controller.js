@@ -1,4 +1,10 @@
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteBoqItem = exports.updateBoqItem = exports.getBoqItemById = exports.getBoqItems = exports.createBoqItem = void 0;
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const canReadProject = (project, userId, role) => {
     if (role === "admin")
@@ -46,7 +52,7 @@ const buildBoqUpdateData = (body, current) => {
     }
     return data;
 };
-export const createBoqItem = async (req, res) => {
+const createBoqItem = async (req, res) => {
     try {
         const { milestoneId, category, name, quantity, unit, unitPrice, totalPrice, actualCost, notes, } = req.body;
         if (!milestoneId ||
@@ -59,7 +65,7 @@ export const createBoqItem = async (req, res) => {
                 message: "milestoneId, category, name, quantity, unit and unitPrice are required",
             });
         }
-        const milestone = await prisma.milestone.findUnique({
+        const milestone = await prisma_js_1.default.milestone.findUnique({
             where: { id: String(milestoneId) },
             include: {
                 project: {
@@ -77,7 +83,7 @@ export const createBoqItem = async (req, res) => {
                 message: "Only the milestone engineer or admin can create BOQ items",
             });
         }
-        const boqItem = await prisma.boqItem.create({
+        const boqItem = await prisma_js_1.default.boqItem.create({
             data: {
                 milestoneId: milestone.id,
                 category: String(category),
@@ -107,13 +113,14 @@ export const createBoqItem = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getBoqItems = async (req, res) => {
+exports.createBoqItem = createBoqItem;
+const getBoqItems = async (req, res) => {
     try {
         const milestoneId = typeof req.query.milestoneId === "string"
             ? req.query.milestoneId
             : undefined;
         const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
-        const boqItems = await prisma.boqItem.findMany({
+        const boqItems = await prisma_js_1.default.boqItem.findMany({
             where: {
                 ...(milestoneId ? { milestoneId } : {}),
                 ...(projectId ? { milestone: { projectId } } : {}),
@@ -156,13 +163,14 @@ export const getBoqItems = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getBoqItemById = async (req, res) => {
+exports.getBoqItems = getBoqItems;
+const getBoqItemById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "BOQ item ID is required" });
         }
-        const boqItem = await prisma.boqItem.findUnique({
+        const boqItem = await prisma_js_1.default.boqItem.findUnique({
             where: { id },
             include: {
                 milestone: {
@@ -189,13 +197,14 @@ export const getBoqItemById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateBoqItem = async (req, res) => {
+exports.getBoqItemById = getBoqItemById;
+const updateBoqItem = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "BOQ item ID is required" });
         }
-        const existingBoqItem = await prisma.boqItem.findUnique({
+        const existingBoqItem = await prisma_js_1.default.boqItem.findUnique({
             where: { id },
             include: {
                 milestone: true,
@@ -209,7 +218,7 @@ export const updateBoqItem = async (req, res) => {
                 message: "Only the milestone engineer or admin can update BOQ items",
             });
         }
-        const boqItem = await prisma.boqItem.update({
+        const boqItem = await prisma_js_1.default.boqItem.update({
             where: { id },
             data: buildBoqUpdateData(req.body, existingBoqItem),
             include: {
@@ -230,13 +239,14 @@ export const updateBoqItem = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteBoqItem = async (req, res) => {
+exports.updateBoqItem = updateBoqItem;
+const deleteBoqItem = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "BOQ item ID is required" });
         }
-        const boqItem = await prisma.boqItem.findUnique({
+        const boqItem = await prisma_js_1.default.boqItem.findUnique({
             where: { id },
             include: {
                 milestone: true,
@@ -250,7 +260,7 @@ export const deleteBoqItem = async (req, res) => {
                 message: "Only the milestone engineer or admin can delete BOQ items",
             });
         }
-        await prisma.boqItem.delete({
+        await prisma_js_1.default.boqItem.delete({
             where: { id },
         });
         return res.json({ message: "BOQ item deleted successfully" });
@@ -260,3 +270,4 @@ export const deleteBoqItem = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteBoqItem = deleteBoqItem;

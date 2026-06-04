@@ -1,18 +1,60 @@
 import { Request, Response } from "express";
 import prisma from "../../../config/db.js";
+import { cacheStore } from "../../../common/services/cache.service.js";
+import {
+  notifyProjectParticipants,
+  notifyUser,
+  notifyUsers,
+} from "../../../lib/notifications.js";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
+
+const projectTeamRoles = ["engineer", "supervisor"] as const;
 
 const canManageProjectMember = (
   project: { clientId: string; engineerId: string | null },
   userId: string,
   role: string,
 ) => {
-  if (role === "admin") return true;
-  if (role === "client") return project.clientId === userId;
-  if (role === "engineer") return project.engineerId === userId;
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (normalizedRole === "admin") return true;
+  if (normalizedRole === "client") return project.clientId === userId;
+  if (normalizedRole === "engineer") return project.engineerId === userId;
   return false;
+};
+
+const refreshProjectActivation = async (
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  projectId: string,
+) => {
+  const accepted = await tx.projectMember.findMany({
+    where: {
+      projectId,
+      role: { in: [...projectTeamRoles] },
+      status: "accepted",
+    },
+    select: { role: true },
+  });
+
+  const acceptedRoles = new Set(accepted.map((member) => member.role));
+  const bothCoreAssigneesAccepted = projectTeamRoles.every((role) =>
+    acceptedRoles.has(role),
+  );
+
+  if (!bothCoreAssigneesAccepted) return false;
+
+  const updated = await tx.project.updateMany({
+    where: {
+      id: projectId,
+      status: "draft",
+    },
+    data: {
+      status: "active",
+    },
+  });
+
+  return updated.count > 0;
 };
 
 export const createProjectMember = async (req: Request, res: Response) => {
@@ -34,9 +76,11 @@ export const createProjectMember = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    if (req.user.role !== "admin" && project.clientId !== req.user.id) {
+    const currentRole = String(req.user.role || "").trim().toLowerCase();
+
+    if (currentRole !== "admin" && project.clientId !== req.user.id) {
       return res.status(403).json({
-        message: "Only the project owner client can assign an engineer",
+        message: "Only the project owner client can assign project team members",
         projectClientId: project.clientId,
         currentUserId: req.user.id,
         currentRole: req.user.role,
@@ -104,7 +148,7 @@ export const createProjectMember = async (req: Request, res: Response) => {
 
     if (existingAssignment?.status === "accepted") {
       return res.status(400).json({
-        message: "This engineer has already accepted this project",
+        message: `This ${role} has already accepted this project`,
         assignment: existingAssignment,
       });
     }
@@ -142,6 +186,20 @@ export const createProjectMember = async (req: Request, res: Response) => {
       },
     });
 
+    cacheStore.clear();
+
+    await notifyUser({
+      userId: assignment.userId,
+      title: "Project invitation",
+      body: `You were invited as ${assignment.role} for ${assignment.project.name}`,
+      data: {
+        type: "project_assignment_invited",
+        projectId: assignment.projectId,
+        assignmentId: assignment.id,
+        role: assignment.role,
+      },
+    });
+
     return res.status(201).json({
       message: "Project assignment sent",
       assignment,
@@ -163,9 +221,9 @@ export const getProjectMembers = async (req: Request, res: Response) => {
       where: {
         ...(projectId ? { projectId } : {}),
         ...(status ? { status: status as never } : {}),
-        ...(req.user.role === "admin"
+        ...(String(req.user.role || "").trim().toLowerCase() === "admin"
           ? {}
-          : req.user.role === "client"
+          : String(req.user.role || "").trim().toLowerCase() === "client"
             ? { project: { clientId: req.user.id } }
             : { userId: req.user.id }),
       },
@@ -222,7 +280,7 @@ export const getProjectMemberById = async (req: Request, res: Response) => {
     }
 
     const canRead =
-      req.user.role === "admin" ||
+      String(req.user.role || "").trim().toLowerCase() === "admin" ||
       assignment.userId === req.user.id ||
       assignment.project.clientId === req.user.id ||
       assignment.project.engineerId === req.user.id;
@@ -289,6 +347,27 @@ export const updateProjectMember = async (req: Request, res: Response) => {
       },
     });
 
+    cacheStore.clear();
+
+    if (status !== undefined) {
+      await notifyUsers(
+        [assignment.userId, assignment.project.clientId, assignment.project.engineerId].filter(
+          (userId): userId is string => Boolean(userId && userId !== req.user.id),
+        ),
+        {
+          title: "Assignment updated",
+          body: `${assignment.role} assignment for ${assignment.project.name} is now ${assignment.status}`,
+          data: {
+            type: "project_assignment_status_updated",
+            projectId: assignment.projectId,
+            assignmentId: assignment.id,
+            role: assignment.role,
+            status: assignment.status,
+          },
+        },
+      );
+    }
+
     return res.json({
       message: "Assignment updated successfully",
       assignment,
@@ -316,10 +395,13 @@ export const acceptProjectMember = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Assignment not found" });
     }
 
-    if (assignment.userId !== req.user.id && req.user.role !== "admin") {
+    if (
+      assignment.userId !== req.user.id &&
+      String(req.user.role || "").trim().toLowerCase() !== "admin"
+    ) {
       return res.status(403).json({
         message:
-          "Only the invited engineer or admin can accept this assignment",
+          "Only the invited project member or admin can accept this assignment",
       });
     }
 
@@ -328,6 +410,8 @@ export const acceptProjectMember = async (req: Request, res: Response) => {
         message: "Only pending assignments can be accepted",
       });
     }
+
+    const activation = { becameActive: false };
 
     const acceptedAssignment = await prisma.$transaction(async (tx) => {
       const updated = await tx.projectMember.update({
@@ -356,11 +440,15 @@ export const acceptProjectMember = async (req: Request, res: Response) => {
           where: { id: updated.projectId },
           data: { engineerId: updated.userId },
         });
+      }
 
+      activation.becameActive = await refreshProjectActivation(tx, updated.projectId);
+
+      if (updated.role === "engineer" || updated.role === "supervisor") {
         await tx.projectMember.updateMany({
           where: {
             projectId: updated.projectId,
-            role: "engineer",
+            role: updated.role,
             status: "pending",
             NOT: { id: updated.id },
           },
@@ -373,6 +461,39 @@ export const acceptProjectMember = async (req: Request, res: Response) => {
 
       return updated;
     });
+
+    cacheStore.clear();
+
+    await notifyUsers(
+      [acceptedAssignment.project.clientId, acceptedAssignment.project.engineerId].filter(
+        (userId): userId is string =>
+          Boolean(userId && userId !== acceptedAssignment.userId),
+      ),
+      {
+        title: "Project invitation accepted",
+        body: `${acceptedAssignment.user.name} accepted the ${acceptedAssignment.role} invitation for ${acceptedAssignment.project.name}`,
+        data: {
+          type: "project_assignment_accepted",
+          projectId: acceptedAssignment.projectId,
+          assignmentId: acceptedAssignment.id,
+          role: acceptedAssignment.role,
+          userId: acceptedAssignment.userId,
+        },
+      },
+    );
+
+    if (activation.becameActive) {
+      await notifyProjectParticipants({
+        projectId: acceptedAssignment.projectId,
+        excludeUserId: acceptedAssignment.userId,
+        title: "Project is active",
+        body: `${acceptedAssignment.project.name} is now active`,
+        data: {
+          type: "project_activated",
+          assignmentId: acceptedAssignment.id,
+        },
+      });
+    }
 
     return res.json({
       message: "Project assignment accepted",
@@ -394,16 +515,20 @@ export const rejectProjectMember = async (req: Request, res: Response) => {
 
     const assignment = await prisma.projectMember.findUnique({
       where: { id },
+      include: { project: true },
     });
 
     if (!assignment) {
       return res.status(404).json({ message: "Assignment not found" });
     }
 
-    if (assignment.userId !== req.user.id && req.user.role !== "admin") {
+    if (
+      assignment.userId !== req.user.id &&
+      String(req.user.role || "").trim().toLowerCase() !== "admin"
+    ) {
       return res.status(403).json({
         message:
-          "Only the invited engineer or admin can reject this assignment",
+          "Only the invited project member or admin can reject this assignment",
       });
     }
 
@@ -432,6 +557,26 @@ export const rejectProjectMember = async (req: Request, res: Response) => {
         },
       },
     });
+
+    cacheStore.clear();
+
+    await notifyUsers(
+      [rejectedAssignment.project.clientId, rejectedAssignment.project.engineerId].filter(
+        (userId): userId is string =>
+          Boolean(userId && userId !== rejectedAssignment.userId),
+      ),
+      {
+        title: "Project invitation rejected",
+        body: `${rejectedAssignment.user.name} rejected the ${rejectedAssignment.role} invitation for ${rejectedAssignment.project.name}`,
+        data: {
+          type: "project_assignment_rejected",
+          projectId: rejectedAssignment.projectId,
+          assignmentId: rejectedAssignment.id,
+          role: rejectedAssignment.role,
+          userId: rejectedAssignment.userId,
+        },
+      },
+    );
 
     return res.json({
       message: "Project assignment rejected",
@@ -489,6 +634,20 @@ export const deleteProjectMember = async (req: Request, res: Response) => {
       }
 
       return updated;
+    });
+
+    cacheStore.clear();
+
+    await notifyUser({
+      userId: assignment.userId,
+      title: "Project assignment removed",
+      body: `Your ${assignment.role} assignment for ${assignment.project.name} was removed`,
+      data: {
+        type: "project_assignment_removed",
+        projectId: assignment.projectId,
+        assignmentId: assignment.id,
+        role: assignment.role,
+      },
     });
 
     return res.json({

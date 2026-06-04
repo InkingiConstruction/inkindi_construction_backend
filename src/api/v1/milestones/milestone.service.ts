@@ -13,6 +13,7 @@
 
 import { MilestoneStatus, Prisma } from "@prisma/client";
 import prisma from "../../../config/db.js";
+import { walletQueue } from "../../../queues/wallet.queue.js";
 
 const canReadMilestones = (project: any, userId: string, role: string) => {
   if (role === "admin") return true;
@@ -186,4 +187,233 @@ export class MilestoneService {
 
     await prisma.milestone.delete({ where: { id: milestoneId } });
   }
+
+  /**
+ * Called when supervisor/client approves a milestone.
+ * Releases locked funds from the vault to the engineer's wallet.
+ */
+export const releaseMilestoneFunds = async (milestoneId: string, approverId: string) => {
+  return prisma.$transaction(async (tx) => {
+    const milestone = await tx.milestone.findUnique({
+      where: { id: milestoneId },
+      include: {
+        project: { include: { escrowAccount: true } },
+        engineer: true,
+      },
+    });
+    if (!milestone) throw new Error("Milestone not found");
+    if (milestone.status === "paid") throw new Error("Milestone already paid");
+
+    const escrow = milestone.project.escrowAccount;
+    if (!escrow) throw new Error("Project has no escrow account");
+
+    // Compute payout from project budget * milestone percentage
+    const payoutAmount = new Prisma.Decimal(milestone.project.budget)
+      .mul(new Prisma.Decimal(milestone.budgetPercentage))
+      .div(100);
+
+    if (escrow.balance.lt(payoutAmount)) {
+      throw new Error("Insufficient escrow balance for payout");
+    }
+
+    // Debit vault
+    const vaultBefore = escrow.balance;
+    const vaultAfter = vaultBefore.minus(payoutAmount);
+
+    await tx.escrowAccount.update({
+      where: { id: escrow.id },
+      data: { balance: { decrement: payoutAmount } },
+    });
+
+    await tx.transaction.create({
+      data: {
+        escrowAccountId: escrow.id,
+        milestoneId: milestone.id,
+        actorId: approverId,
+        type: "release",
+        method: "bank_transfer",
+        amount: payoutAmount,
+        status: "completed",
+        reference: `REL-${milestone.id}-${Date.now()}`,
+        completedAt: new Date(),
+        metadata: { reason: "milestone_approved", milestoneName: milestone.name },
+      },
+    });
+
+    // Credit engineer wallet
+    const engineerWallet = await tx.wallet.findUnique({
+      where: { userId: milestone.engineerId },
+    });
+    if (!engineerWallet) throw new Error("Engineer wallet not found");
+
+    const walletBefore = engineerWallet.balance;
+    const walletAfter = walletBefore.plus(payoutAmount);
+
+    await tx.wallet.update({
+      where: { id: engineerWallet.id },
+      data: { balance: { increment: payoutAmount } },
+    });
+
+    await tx.walletTransaction.create({
+      data: {
+        walletId: engineerWallet.id,
+        type: "milestone_payout",
+        amount: payoutAmount,
+        balanceBefore: walletBefore,
+        balanceAfter: walletAfter,
+        currency: engineerWallet.currency,
+        status: "completed",
+        escrowAccountId: escrow.id,
+        milestoneId: milestone.id,
+        completedAt: new Date(),
+        description: `Milestone payout: ${milestone.name}`,
+        reference: `PAY-${milestone.id}-${Date.now()}`,
+      },
+    });
+
+    // Update milestone status
+    await tx.milestone.update({
+      where: { id: milestone.id },
+      data: { status: "paid", paidAt: new Date() },
+    });
+
+    // Audit log
+    await tx.auditLog.create({
+      data: {
+        actorId: approverId,
+        action: "MILESTONE_FUNDS_RELEASED",
+        entityType: "Milestone",
+        entityId: milestone.id,
+        projectId: milestone.projectId,
+        newValues: { payoutAmount: payoutAmount.toString(), status: "paid" },
+        result: "success",
+      },
+    });
+
+    return { payoutAmount, milestone, engineerId: milestone.engineerId };
+  }).then(async (result) => {
+    await walletQueue.add("wallet.milestone_payout", {
+      type: "wallet.milestone_payout",
+      walletId: result.milestone.engineerId,
+      milestoneId: result.milestone.id,
+      amount: Number(result.payoutAmount),
+      recipientId: result.engineerId,
+    });
+    return result;
+  });
+};
+/**
+ * Called when supervisor/client approves a milestone.
+ * Releases locked funds from the vault to the engineer's wallet.
+ */
+export const releaseMilestoneFunds = async (milestoneId: string, approverId: string) => {
+  return prisma.$transaction(async (tx) => {
+    const milestone = await tx.milestone.findUnique({
+      where: { id: milestoneId },
+      include: {
+        project: { include: { escrowAccount: true } },
+        engineer: true,
+      },
+    });
+    if (!milestone) throw new Error("Milestone not found");
+    if (milestone.status === "paid") throw new Error("Milestone already paid");
+
+    const escrow = milestone.project.escrowAccount;
+    if (!escrow) throw new Error("Project has no escrow account");
+
+    // Compute payout from project budget * milestone percentage
+    const payoutAmount = new Prisma.Decimal(milestone.project.budget)
+      .mul(new Prisma.Decimal(milestone.budgetPercentage))
+      .div(100);
+
+    if (escrow.balance.lt(payoutAmount)) {
+      throw new Error("Insufficient escrow balance for payout");
+    }
+
+    // Debit vault
+    const vaultBefore = escrow.balance;
+    const vaultAfter = vaultBefore.minus(payoutAmount);
+
+    await tx.escrowAccount.update({
+      where: { id: escrow.id },
+      data: { balance: { decrement: payoutAmount } },
+    });
+
+    await tx.transaction.create({
+      data: {
+        escrowAccountId: escrow.id,
+        milestoneId: milestone.id,
+        actorId: approverId,
+        type: "release",
+        method: "bank_transfer",
+        amount: payoutAmount,
+        status: "completed",
+        reference: `REL-${milestone.id}-${Date.now()}`,
+        completedAt: new Date(),
+        metadata: { reason: "milestone_approved", milestoneName: milestone.name },
+      },
+    });
+
+    // Credit engineer wallet
+    const engineerWallet = await tx.wallet.findUnique({
+      where: { userId: milestone.engineerId },
+    });
+    if (!engineerWallet) throw new Error("Engineer wallet not found");
+
+    const walletBefore = engineerWallet.balance;
+    const walletAfter = walletBefore.plus(payoutAmount);
+
+    await tx.wallet.update({
+      where: { id: engineerWallet.id },
+      data: { balance: { increment: payoutAmount } },
+    });
+
+    await tx.walletTransaction.create({
+      data: {
+        walletId: engineerWallet.id,
+        type: "milestone_payout",
+        amount: payoutAmount,
+        balanceBefore: walletBefore,
+        balanceAfter: walletAfter,
+        currency: engineerWallet.currency,
+        status: "completed",
+        escrowAccountId: escrow.id,
+        milestoneId: milestone.id,
+        completedAt: new Date(),
+        description: `Milestone payout: ${milestone.name}`,
+        reference: `PAY-${milestone.id}-${Date.now()}`,
+      },
+    });
+
+    // Update milestone status
+    await tx.milestone.update({
+      where: { id: milestone.id },
+      data: { status: "paid", paidAt: new Date() },
+    });
+
+    // Audit log
+    await tx.auditLog.create({
+      data: {
+        actorId: approverId,
+        action: "MILESTONE_FUNDS_RELEASED",
+        entityType: "Milestone",
+        entityId: milestone.id,
+        projectId: milestone.projectId,
+        newValues: { payoutAmount: payoutAmount.toString(), status: "paid" },
+        result: "success",
+      },
+    });
+
+    return { payoutAmount, milestone, engineerId: milestone.engineerId };
+  }).then(async (result) => {
+    await walletQueue.add("wallet.milestone_payout", {
+      type: "wallet.milestone_payout",
+      walletId: result.milestone.engineerId,
+      milestoneId: result.milestone.id,
+      amount: Number(result.payoutAmount),
+      recipientId: result.engineerId,
+    });
+    return result;
+  });
+};
 }

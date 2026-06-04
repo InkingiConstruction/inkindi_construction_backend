@@ -1,4 +1,11 @@
-import prisma from "../../../lib/prisma.js";
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteProjectMember = exports.rejectProjectMember = exports.acceptProjectMember = exports.updateProjectMember = exports.getProjectMemberById = exports.getProjectMembers = exports.createProjectMember = void 0;
+const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const canManageProjectMember = (project, userId, role) => {
     if (role === "admin")
@@ -9,7 +16,7 @@ const canManageProjectMember = (project, userId, role) => {
         return project.engineerId === userId;
     return false;
 };
-export const createProjectMember = async (req, res) => {
+const createProjectMember = async (req, res) => {
     try {
         const { projectId, userId } = req.body;
         const role = String(req.body.role || "engineer").trim().toLowerCase();
@@ -18,7 +25,7 @@ export const createProjectMember = async (req, res) => {
                 .status(400)
                 .json({ message: "projectId and userId are required" });
         }
-        let project = await prisma.project.findUnique({
+        let project = await prisma_js_1.default.project.findUnique({
             where: { id: String(projectId) },
         });
         if (!project) {
@@ -32,7 +39,7 @@ export const createProjectMember = async (req, res) => {
                 currentRole: req.user.role,
             });
         }
-        const user = await prisma.user.findUnique({
+        const user = await prisma_js_1.default.user.findUnique({
             where: { id: String(userId) },
             select: {
                 id: true,
@@ -54,7 +61,7 @@ export const createProjectMember = async (req, res) => {
             });
         }
         if (role === "engineer" && project.engineerId) {
-            const acceptedEngineerAssignment = await prisma.projectMember.findFirst({
+            const acceptedEngineerAssignment = await prisma_js_1.default.projectMember.findFirst({
                 where: {
                     projectId: project.id,
                     userId: project.engineerId,
@@ -70,13 +77,13 @@ export const createProjectMember = async (req, res) => {
                 });
             }
             if (!acceptedEngineerAssignment) {
-                project = await prisma.project.update({
+                project = await prisma_js_1.default.project.update({
                     where: { id: project.id },
                     data: { engineerId: null },
                 });
             }
         }
-        const existingAssignment = await prisma.projectMember.findUnique({
+        const existingAssignment = await prisma_js_1.default.projectMember.findUnique({
             where: {
                 projectId_userId: {
                     projectId: project.id,
@@ -90,7 +97,7 @@ export const createProjectMember = async (req, res) => {
                 assignment: existingAssignment,
             });
         }
-        const assignment = await prisma.projectMember.upsert({
+        const assignment = await prisma_js_1.default.projectMember.upsert({
             where: {
                 projectId_userId: {
                     projectId: project.id,
@@ -122,6 +129,16 @@ export const createProjectMember = async (req, res) => {
                 },
             },
         });
+        await (0, notifications_js_1.notifyUser)({
+            userId: assignment.userId,
+            title: "Project assignment",
+            body: `You were invited to join ${assignment.project.name} as ${assignment.role}`,
+            data: {
+                projectId: assignment.projectId,
+                assignmentId: assignment.id,
+                type: "project_assignment",
+            },
+        });
         return res.status(201).json({
             message: "Project assignment sent",
             assignment,
@@ -132,11 +149,12 @@ export const createProjectMember = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getProjectMembers = async (req, res) => {
+exports.createProjectMember = createProjectMember;
+const getProjectMembers = async (req, res) => {
     try {
         const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
         const status = typeof req.query.status === "string" ? req.query.status : undefined;
-        const assignments = await prisma.projectMember.findMany({
+        const assignments = await prisma_js_1.default.projectMember.findMany({
             where: {
                 ...(projectId ? { projectId } : {}),
                 ...(status ? { status: status } : {}),
@@ -169,13 +187,14 @@ export const getProjectMembers = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const getProjectMemberById = async (req, res) => {
+exports.getProjectMembers = getProjectMembers;
+const getProjectMemberById = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Assignment ID is required" });
         }
-        const assignment = await prisma.projectMember.findUnique({
+        const assignment = await prisma_js_1.default.projectMember.findUnique({
             where: { id },
             include: {
                 project: true,
@@ -207,14 +226,15 @@ export const getProjectMemberById = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const updateProjectMember = async (req, res) => {
+exports.getProjectMemberById = getProjectMemberById;
+const updateProjectMember = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         const { role, status } = req.body;
         if (!id) {
             return res.status(400).json({ message: "Assignment ID is required" });
         }
-        const existingAssignment = await prisma.projectMember.findUnique({
+        const existingAssignment = await prisma_js_1.default.projectMember.findUnique({
             where: { id },
             include: { project: true },
         });
@@ -226,7 +246,7 @@ export const updateProjectMember = async (req, res) => {
                 message: "Only the project owner, assigned engineer, or admin can update this assignment",
             });
         }
-        const assignment = await prisma.projectMember.update({
+        const assignment = await prisma_js_1.default.projectMember.update({
             where: { id },
             data: {
                 ...(role ? { role: String(role) } : {}),
@@ -255,13 +275,14 @@ export const updateProjectMember = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const acceptProjectMember = async (req, res) => {
+exports.updateProjectMember = updateProjectMember;
+const acceptProjectMember = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Assignment ID is required" });
         }
-        const assignment = await prisma.projectMember.findUnique({
+        const assignment = await prisma_js_1.default.projectMember.findUnique({
             where: { id },
             include: { project: true },
         });
@@ -278,7 +299,7 @@ export const acceptProjectMember = async (req, res) => {
                 message: "Only pending assignments can be accepted",
             });
         }
-        const acceptedAssignment = await prisma.$transaction(async (tx) => {
+        const acceptedAssignment = await prisma_js_1.default.$transaction(async (tx) => {
             const updated = await tx.projectMember.update({
                 where: { id },
                 data: {
@@ -319,6 +340,16 @@ export const acceptProjectMember = async (req, res) => {
             }
             return updated;
         });
+        await (0, notifications_js_1.notifyUser)({
+            userId: acceptedAssignment.project.clientId,
+            title: "Project assignment accepted",
+            body: `${acceptedAssignment.user.name} accepted ${acceptedAssignment.project.name}`,
+            data: {
+                projectId: acceptedAssignment.projectId,
+                assignmentId: acceptedAssignment.id,
+                type: "project_assignment_accepted",
+            },
+        });
         return res.json({
             message: "Project assignment accepted",
             assignment: acceptedAssignment,
@@ -329,13 +360,14 @@ export const acceptProjectMember = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const rejectProjectMember = async (req, res) => {
+exports.acceptProjectMember = acceptProjectMember;
+const rejectProjectMember = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Assignment ID is required" });
         }
-        const assignment = await prisma.projectMember.findUnique({
+        const assignment = await prisma_js_1.default.projectMember.findUnique({
             where: { id },
         });
         if (!assignment) {
@@ -351,7 +383,7 @@ export const rejectProjectMember = async (req, res) => {
                 message: "Only pending assignments can be rejected",
             });
         }
-        const rejectedAssignment = await prisma.projectMember.update({
+        const rejectedAssignment = await prisma_js_1.default.projectMember.update({
             where: { id },
             data: {
                 status: "declined",
@@ -370,6 +402,16 @@ export const rejectProjectMember = async (req, res) => {
                 },
             },
         });
+        await (0, notifications_js_1.notifyUser)({
+            userId: rejectedAssignment.project.clientId,
+            title: "Project assignment rejected",
+            body: `${rejectedAssignment.user.name} rejected ${rejectedAssignment.project.name}`,
+            data: {
+                projectId: rejectedAssignment.projectId,
+                assignmentId: rejectedAssignment.id,
+                type: "project_assignment_rejected",
+            },
+        });
         return res.json({
             message: "Project assignment rejected",
             assignment: rejectedAssignment,
@@ -380,13 +422,14 @@ export const rejectProjectMember = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-export const deleteProjectMember = async (req, res) => {
+exports.rejectProjectMember = rejectProjectMember;
+const deleteProjectMember = async (req, res) => {
     try {
         const id = getParamId(req.params.id);
         if (!id) {
             return res.status(400).json({ message: "Assignment ID is required" });
         }
-        const assignment = await prisma.projectMember.findUnique({
+        const assignment = await prisma_js_1.default.projectMember.findUnique({
             where: { id },
             include: { project: true },
         });
@@ -398,7 +441,7 @@ export const deleteProjectMember = async (req, res) => {
                 message: "Only the project owner, assigned engineer, or admin can remove this assignment",
             });
         }
-        const removedAssignment = await prisma.$transaction(async (tx) => {
+        const removedAssignment = await prisma_js_1.default.$transaction(async (tx) => {
             const updated = await tx.projectMember.update({
                 where: { id },
                 data: {
@@ -425,3 +468,4 @@ export const deleteProjectMember = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+exports.deleteProjectMember = deleteProjectMember;

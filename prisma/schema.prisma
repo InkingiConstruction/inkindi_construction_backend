@@ -19,10 +19,16 @@ enum KycDocumentType {
   national_id
   passport
   ier_license
+  ier_certificate
+  ier_corporate_license
   indemnity_insurance
   business_registration
+  rdb_certificate
   tax_compliance
+  tin_certificate
   certification
+  practice_license
+  accreditation_cert
 }
 
 enum KycDocumentStatus {
@@ -143,10 +149,130 @@ enum AssignmentStatus {
   removed
 }
 
+enum ProgressReviewStatus {
+  pending
+  approved
+  rejected
+}
+
+// ============================================================================
+// 💰 WALLET & FUNDING MODELS
+// ============================================================================
+
+enum WalletStatus {
+  active
+  frozen
+  closed
+}
+
+enum WalletFundingMethod {
+  stripe
+  mtn_momo
+  airtel_money
+  bank_transfer
+  internal_transfer
+}
+
+enum WalletFundingStatus {
+  pending
+  processing
+  completed
+  failed
+  reversed
+}
+
+enum WalletTransactionType {
+  funding          // money in from provider
+  withdrawal       // money out to provider
+  vault_deposit    // moved to project vault
+  vault_refund     // returned from project vault
+  milestone_payout // payout to engineer/supplier
+  penalty          // dispute penalty
+  adjustment       // admin manual adjustment
+  refund           // refund from provider
+}
+
+model Wallet {
+  id           String        @id @default(cuid())
+  userId       String        @unique
+  user         User          @relation("UserWallet", fields: [userId], references: [id], onDelete: Cascade)
+  balance      Decimal       @default(0) @db.Decimal(15, 2)
+  currency     String        @default("RWF")
+  status       WalletStatus  @default(active)
+  frozenReason String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  transactions    WalletTransaction[]
+  fundingRequests FundingRequest[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("wallet")
+}
+
+
+model WalletTransaction {
+  id              String                 @id @default(cuid())
+  walletId        String
+  wallet          Wallet                 @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type            WalletTransactionType
+  amount          Decimal                @db.Decimal(15, 2) // positive = credit, negative = debit
+  balanceBefore   Decimal                @db.Decimal(15, 2)
+  balanceAfter    Decimal                @db.Decimal(15, 2)
+  currency        String                 @default("RWF")
+  status          TransactionStatus      @default(pending)
+  reference       String?                @unique
+  description     String?
+  metadata        Json?
+  escrowAccountId String?                // if tied to a vault
+  milestoneId     String?                // if tied to a milestone payout
+  counterpartyId  String?                // other user involved
+  completedAt     DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([walletId])
+  @@index([type])
+  @@index([status])
+  @@index([escrowAccountId])
+  @@index([createdAt])
+  @@map("wallet_transaction")
+}
+
+model FundingRequest {
+  id              String                 @id @default(cuid())
+  walletId        String
+  wallet          Wallet                 @relation(fields: [walletId], references: [id])
+  userId          String
+  user            User                   @relation("UserFundingRequests", fields: [userId], references: [id], onDelete: Cascade)
+  amount          Decimal                @db.Decimal(15, 2)
+  currency        String                 @default("RWF")
+  method          WalletFundingMethod
+  status          WalletFundingStatus    @default(pending)
+  reference       String?                @unique
+  providerRef     String?                // stripe PI id, momo ref, etc.
+  phoneNumber     String?                // for momo
+  failureReason   String?
+  metadata        Json?
+  expiresAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([walletId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("funding_request")
+}
+
+
 model User {
   id                  String    @id
   name                String
   email               String    @unique
+  passwordHash        String?
   emailVerified       Boolean   @default(false)
   image               String?
   createdAt           DateTime  @default(now())
@@ -164,11 +290,14 @@ model User {
   kycSubmittedAt      DateTime?
   kycReviewedAt       DateTime?
   kycRejectionReason  String?
+  roleSpecific        Json      @default("{}")
+  registrationDocuments Json    @default("[]")
+  selfieUrl           String?
+  registrationSubmittedAt DateTime?
   lastLoginAt         DateTime?
   notificationPrefs   Json      @default("{}")
 
-  sessions             Session[]
-  accounts             Account[]
+  authOtps             AuthOtp[]
   kycDocuments         KycDocument[]
   clientProjects       Project[]             @relation("ClientProjects")
   engineerProjects     Project[]             @relation("EngineerProjects")
@@ -185,60 +314,34 @@ model User {
   transactions         Transaction[]
   notifications        Notification[]
   sentMessages         Message[]
+  receivedMessages     Message[]              @relation("MessageRecipient")
   auditLogs            AuditLog[]
   activityLogs         ActivityLog[]
   apiKeys              ApiKey[]
+  wallet               Wallet?            @relation("UserWallet")
+  fundingRequests      FundingRequest[]   @relation("UserFundingRequests")
+
   @@index([role])
   @@index([kycStatus])
   @@map("user")
 }
 
-model Session {
-  id             String   @id
-  expiresAt      DateTime
-  token          String   @unique
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  ipAddress      String?
-  userAgent      String?
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  impersonatedBy String?
+model AuthOtp {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String
+  codeHash  String
+  type      String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@index([email, type])
   @@index([userId])
-  @@map("session")
-}
-
-model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  @@index([userId])
-  @@map("account")
-}
-
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([identifier])
-  @@map("verification")
+  @@map("auth_otp")
 }
 
 model KycDocument {
@@ -517,10 +620,15 @@ model ProgressPhoto {
   caption      String?
   isVideo      Boolean   @default(false)
   videoDuration Int?
+  reviewStatus ProgressReviewStatus @default(pending)
+  supervisorComment String?
+  reviewedById String?
+  reviewedAt DateTime?
   createdAt    DateTime  @default(now())
 
   @@index([projectId])
   @@index([milestoneId])
+  @@index([reviewStatus])
   @@index([createdAt])
   @@map("progress_photo")
 }
@@ -589,16 +697,20 @@ model DisputeEvidence {
 
 model Message {
   id        String   @id @default(cuid())
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
   senderId  String
   sender    User     @relation(fields: [senderId], references: [id])
+  recipientId String?
+  recipient User?    @relation("MessageRecipient", fields: [recipientId], references: [id])
   content   String
   photoUrl  String?
   createdAt DateTime @default(now())
+  editedAt  DateTime?
 
   @@index([projectId])
   @@index([senderId])
+  @@index([recipientId])
   @@map("message")
 }
 

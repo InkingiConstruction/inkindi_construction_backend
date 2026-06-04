@@ -12,6 +12,9 @@
  */
 
 import { Request, Response, NextFunction } from "express";
+import { UploadApiResponse } from "cloudinary";
+import cloudinary from "../../../config/cloudinary.js";
+import prisma from "../../../config/db.js";
 import { KycService } from "./kyc.service";
 
 /**
@@ -21,18 +24,46 @@ import { KycService } from "./kyc.service";
  * PRINCIPLE       : SOLID (This layer only manages web concerns)
  */
 
+const uploadKycFile = (file: Express.Multer.File) =>
+  new Promise<UploadApiResponse>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "inkingi/kyc",
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (error || !result) {
+          reject(error);
+          return;
+        }
+
+        resolve(result);
+      },
+    );
+
+    stream.end(file.buffer);
+  });
+
 export const uploadDocument = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { type, cloudinaryUrl, publicId } = req.body;
+    const { type } = req.body;
+    const files = (req.files as Express.Multer.File[]) || [];
+    const file = files[0];
+
+    if (!file) {
+      return res.status(400).json({ message: "KYC document file is required" });
+    }
+
+    const uploaded = await uploadKycFile(file);
     
     const document = await KycService.uploadDocument(
       req.user.id,
       req.user.role,
       req.user.emailVerified,
-      req.user.phoneNumberVerified,
+      Boolean(req.user.phoneNumberVerified),
       type,
-      cloudinaryUrl,
-      publicId
+      uploaded.secure_url,
+      uploaded.public_id
     );
 
     res.status(201).json({ message: "Document uploaded successfully", document });
@@ -53,6 +84,29 @@ export const getKycStatus = async (req: Request, res: Response, next: NextFuncti
   try {
     const user = await KycService.getKycStatus(req.user.id);
     res.json(user);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const autoVerifyPhone = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { phoneNumber } = req.body;
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        phoneNumber: phoneNumber || req.user.phoneNumber,
+        phoneNumberVerified: true,
+      },
+      select: {
+        id: true,
+        phoneNumber: true,
+        phoneNumberVerified: true,
+      },
+    });
+
+    res.json({ message: "Phone auto verified", user });
   } catch (error: any) {
     next(error);
   }

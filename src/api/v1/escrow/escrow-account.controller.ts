@@ -1,355 +1,151 @@
 import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
-import prisma from "../../../config/db.js";
+import { WalletService } from "./escrow.service";
+import prisma from "../../../config/db";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
 
-const canReadProjectEscrow = (
-  project: {
-    clientId: string;
-    engineerId: string | null;
-    projectMembers?: { userId: string; status: string }[];
-  },
-  userId: string,
-  role: string,
-) => {
-  if (role === "admin") return true;
-  if (project.clientId === userId) return true;
-  if (project.engineerId === userId) return true;
-  return Boolean(
-    project.projectMembers?.some(
-      (member) => member.userId === userId && member.status === "accepted",
-    ),
-  );
+/**
+ * GET /api/v1/wallet
+ * Get current user's wallet summary
+ */
+export const getMyWallet = async (req: Request, res: Response) => {
+  try {
+    const wallet = await WalletService.ensureWallet(req.user.id);
+    const summary = await WalletService.getWallet(req.user.id);
+    return res.json(summary);
+  } catch (error) {
+    console.error("Get wallet error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
 };
 
-export const createEscrowAccount = async (req: Request, res: Response) => {
+/**
+ * GET /api/v1/wallet/transactions?page=1&limit=20&type=funding
+ */
+export const getMyWalletHistory = async (req: Request, res: Response) => {
   try {
-    const { projectId, currency, balance, lockedBalance } = req.body;
+    const page = Number(req.query.page) || 1;
+    const limit = Math.min(Number(req.query.limit) || 20, 100);
+    const type = req.query.type as any | undefined;
+    const result = await WalletService.getWalletHistory(req.user.id, { page, limit, type });
+    return res.json(result);
+  } catch (error) {
+    console.error("Get wallet history error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 
-    if (!projectId) {
-      return res.status(400).json({ message: "projectId is required" });
+/**
+ * POST /api/v1/wallet/fund
+ * Initiate a funding request (simulated Stripe / Momo)
+ * Body: { amount, method, phoneNumber? }
+ */
+export const initiateFunding = async (req: Request, res: Response) => {
+  try {
+    const amount = Number(req.body.amount);
+    const method = req.body.method as "stripe" | "mtn_momo" | "airtel_money" | "bank_transfer";
+    const phoneNumber = req.body.phoneNumber;
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ message: "Valid amount is required" });
+    }
+    if (!["stripe", "mtn_momo", "airtel_money", "bank_transfer"].includes(method)) {
+      return res.status(400).json({ message: "Invalid payment method" });
+    }
+    if ((method === "mtn_momo" || method === "airtel_money") && !phoneNumber) {
+      return res.status(400).json({ message: "Phone number required for mobile money" });
     }
 
-    const project = await prisma.project.findUnique({
-      where: { id: String(projectId) },
-      include: {
-        escrowAccount: true,
-      },
-    });
-
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
-    if (project.escrowAccount) {
-      return res.status(409).json({
-        message: "Project already has an escrow account",
-        escrowAccount: project.escrowAccount,
-      });
-    }
-
-    const escrowAccount = await prisma.escrowAccount.create({
-      data: {
-        projectId: project.id,
-        currency: currency || project.currency,
-        balance:
-          balance !== undefined ? new Prisma.Decimal(balance) : undefined,
-        lockedBalance:
-          lockedBalance !== undefined
-            ? new Prisma.Decimal(lockedBalance)
-            : undefined,
-      },
-      include: {
-        project: true,
-        transactions: true,
-      },
+    const funding = await WalletService.createFundingRequest({
+      userId: req.user.id,
+      amount,
+      method,
+      phoneNumber,
+      metadata: { initiatedBy: req.user.id, ip: req.ip },
     });
 
     return res.status(201).json({
-      message: "Escrow account created successfully",
-      escrowAccount,
+      message: "Funding request created. Confirm to complete.",
+      fundingRequest: funding,
     });
   } catch (error) {
-    console.error("Create escrow account error:", error);
+    console.error("Initiate funding error:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
-export const getEscrowAccounts = async (req: Request, res: Response) => {
+/**
+ * POST /api/v1/wallet/fund/:fundingId/confirm  [TEST/SIMULATION]
+ * Simulates provider webhook callback — only for development/testing.
+ */
+export const confirmFundingTest = async (req: Request, res: Response) => {
   try {
-    const projectId =
-      typeof req.query.projectId === "string" ? req.query.projectId : undefined;
+    const fundingId = getParamId(req.params.fundingId);
+    if (!fundingId) return res.status(400).json({ message: "Funding ID required" });
 
-    const escrowAccounts = await prisma.escrowAccount.findMany({
-      where: {
-        ...(projectId ? { projectId } : {}),
-        ...(req.user.role === "admin"
-          ? {}
-          : {
-              project: {
-                OR: [
-                  { clientId: req.user.id },
-                  { engineerId: req.user.id },
-                  {
-                    projectMembers: {
-                      some: {
-                        userId: req.user.id,
-                        status: "accepted",
-                      },
-                    },
-                  },
-                ],
-              },
-            }),
-      },
-      include: {
-        project: true,
-        transactions: {
-          orderBy: { createdAt: "desc" },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return res.json(escrowAccounts);
-  } catch (error) {
-    console.error("Get escrow accounts error:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
-};
-
-export const getEscrowAccountById = async (req: Request, res: Response) => {
-  try {
-    const id = getParamId(req.params.id);
-
-    if (!id) {
-      return res.status(400).json({ message: "Escrow account ID is required" });
-    }
-
-    const escrowAccount = await prisma.escrowAccount.findUnique({
-      where: { id },
-      include: {
-        project: {
-          include: {
-            projectMembers: true,
-          },
-        },
-        transactions: {
-          include: {
-            milestone: true,
-            actor: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true,
-                role: true,
-              },
-            },
-          },
-          orderBy: { createdAt: "desc" },
-        },
-      },
-    });
-
-    if (!escrowAccount) {
-      return res.status(404).json({ message: "Escrow account not found" });
-    }
-
-    if (
-      !canReadProjectEscrow(
-        escrowAccount.project,
-        req.user.id,
-        req.user.role,
-      )
-    ) {
-      return res.status(403).json({
-        message: "You do not have access to this escrow account",
-      });
-    }
-
-    return res.json(escrowAccount);
-  } catch (error) {
-    console.error("Get escrow account by ID error:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
-};
-
-export const updateEscrowAccount = async (req: Request, res: Response) => {
-  try {
-    const id = getParamId(req.params.id);
-    const { currency, balance, lockedBalance } = req.body;
-
-    if (!id) {
-      return res.status(400).json({ message: "Escrow account ID is required" });
-    }
-
-    const existingEscrowAccount = await prisma.escrowAccount.findUnique({
-      where: { id },
-    });
-
-    if (!existingEscrowAccount) {
-      return res.status(404).json({ message: "Escrow account not found" });
-    }
-
-    const escrowAccount = await prisma.escrowAccount.update({
-      where: { id },
-      data: {
-        currency,
-        balance:
-          balance !== undefined ? new Prisma.Decimal(balance) : undefined,
-        lockedBalance:
-          lockedBalance !== undefined
-            ? new Prisma.Decimal(lockedBalance)
-            : undefined,
-      },
-      include: {
-        project: true,
-        transactions: {
-          orderBy: { createdAt: "desc" },
-        },
-      },
-    });
-
+    const result = await WalletService.simulateFundingSuccess(fundingId);
     return res.json({
-      message: "Escrow account updated successfully",
-      escrowAccount,
+      message: "Funding completed (simulated)",
+      data: result,
     });
-  } catch (error) {
-    console.error("Update escrow account error:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+  } catch (error: any) {
+    console.error("Confirm funding error:", error);
+    return res.status(400).json({ message: error.message ?? "Funding confirmation failed" });
   }
 };
-
-export const deleteEscrowAccount = async (req: Request, res: Response) => {
-  try {
-    const id = getParamId(req.params.id);
-
-    if (!id) {
-      return res.status(400).json({ message: "Escrow account ID is required" });
-    }
-
-    const escrowAccount = await prisma.escrowAccount.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: {
-            transactions: true,
-          },
-        },
-      },
-    });
-
-    if (!escrowAccount) {
-      return res.status(404).json({ message: "Escrow account not found" });
-    }
-
-    if (escrowAccount._count.transactions > 0) {
-      return res.status(400).json({
-        message: "Escrow account with transactions cannot be deleted",
-      });
-    }
-
-    await prisma.escrowAccount.delete({
-      where: { id },
-    });
-
-    return res.json({ message: "Escrow account deleted successfully" });
-  } catch (error) {
-    console.error("Delete escrow account error:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
-};
-
-import { EscrowService } from "./escrow.service";
 
 /**
- * @swagger
- * /api/v1/escrow-accounts/{id}/deposit-stripe:
- *   post:
- *     summary: Initialize a Stripe deposit for an escrow account
- *     tags: [Escrow]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               amount:
- *                 type: number
- *               currency:
- *                 type: string
- *                 default: USD
- *     responses:
- *       200:
- *         description: Successfully created Stripe Payment Intent
+ * POST /api/v1/wallet/transfer-to-vault
+ * Body: { escrowAccountId, amount, description? }
  */
-export const createStripeDeposit = async (req: Request, res: Response) => {
+export const transferToVault = async (req: Request, res: Response) => {
   try {
-    const id = getParamId(req.params.id);
-    const { amount, currency = "usd" } = req.body;
-
-    if (!id || !amount) {
-      return res.status(400).json({ message: "Account ID and amount are required" });
+    const { escrowAccountId, amount, description } = req.body;
+    if (!escrowAccountId || !Number.isFinite(Number(amount))) {
+      return res.status(400).json({ message: "escrowAccountId and amount required" });
     }
+    const result = await WalletService.transferToVault({
+      userId: req.user.id,
+      escrowAccountId,
+      amount: Number(amount),
+      description,
+    });
+    return res.json({ message: "Transfer to vault successful", data: result });
+  } catch (error: any) {
+    console.error("Transfer to vault error:", error);
+    return res.status(400).json({ message: error.message ?? "Transfer failed" });
+  }
+};
 
-    const intent = await EscrowService.createStripePaymentIntent(Number(amount), currency, id);
-    return res.json({ message: "Stripe Payment Intent created", data: intent });
+/**
+ * GET /api/v1/wallet/project-vaults
+ * List all project vaults the user has funded
+ */
+export const listMyProjectVaults = async (req: Request, res: Response) => {
+  try {
+    const vaults = await WalletService.listUserProjectVaults(req.user.id);
+    return res.json({ items: vaults });
   } catch (error) {
-    console.error("Stripe deposit error:", error);
+    console.error("List vaults error:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 /**
- * @swagger
- * /api/v1/escrow-accounts/{id}/deposit-mtn:
- *   post:
- *     summary: Initialize an MTN Momo deposit for an escrow account
- *     tags: [Escrow]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               amount:
- *                 type: number
- *               phoneNumber:
- *                 type: string
- *     responses:
- *       200:
- *         description: Successfully initiated MTN Momo prompt
+ * GET /api/v1/wallet/project-vaults/:escrowAccountId
+ * Details for a specific project vault (deposits, balance, history)
  */
-export const createMtnMomoDeposit = async (req: Request, res: Response) => {
+export const getProjectVaultDetails = async (req: Request, res: Response) => {
   try {
-    const id = getParamId(req.params.id);
-    const { amount, phoneNumber } = req.body;
-
-    if (!id || !amount || !phoneNumber) {
-      return res.status(400).json({ message: "Account ID, amount, and phone number are required" });
-    }
-
-    const result = await EscrowService.initiateMtnMomoDeposit(Number(amount), phoneNumber, id, req.user.id);
-    return res.json({ message: "MTN Momo prompt initiated", data: result });
+    const id = getParamId(req.params.escrowAccountId);
+    if (!id) return res.status(400).json({ message: "escrowAccountId required" });
+    const details = await WalletService.getProjectVaultBalance(req.user.id, id);
+    if (!details) return res.status(404).json({ message: "Vault not found" });
+    return res.json(details);
   } catch (error) {
-    console.error("MTN Momo deposit error:", error);
+    console.error("Get vault details error:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };

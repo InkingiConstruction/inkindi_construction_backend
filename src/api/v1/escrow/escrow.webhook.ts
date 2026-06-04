@@ -12,9 +12,10 @@
  */
 
 import { Request, Response } from "express";
-import stripe from "../../../integrations/stripe";
+import stripe from "../../../config/stripe";
 import prisma from "../../../config/db.js";
 import { logger } from "../../../common/middleware/logger.middleware";
+import { notifyProjectParticipants } from "../../../lib/notifications.js";
 
 /**
  * ============================================================================
@@ -57,7 +58,7 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
   if (event.type === "payment_intent.succeeded") {
     const paymentIntent = event.data.object as any;
     const { escrowAccountId, type } = paymentIntent.metadata;
-    const amount = paymentIntent.amount / 100; // Convert from cents
+    const amount = Number(paymentIntent.metadata?.amount || paymentIntent.amount / 100);
 
     if (!escrowAccountId || type !== "deposit") {
       logger.warn(`Stripe webhook: Missing or invalid metadata on PaymentIntent ${paymentIntent.id}`);
@@ -76,26 +77,57 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
         return res.status(404).json({ message: "Escrow account not found" });
       }
 
-      // 2. Apply deposit to balance atomically
-      await prisma.$transaction([
-        prisma.escrowAccount.update({
+      await prisma.$transaction(async (tx) => {
+        await tx.escrowAccount.update({
           where: { id: escrowAccountId },
           data: { balance: { increment: amount } },
-        }),
-        prisma.transaction.create({
-          data: {
+        });
+
+        const pendingTransaction = await tx.transaction.findFirst({
+          where: {
             escrowAccountId,
-            actorId: escrow.project.clientId, // Set actor to the client who owns the project
-            type: "deposit",
-            method: "bank_transfer",
-            amount,
-            status: "completed",
             reference: paymentIntent.id,
-            completedAt: new Date(),
-            metadata: { provider: "stripe", paymentIntentId: paymentIntent.id },
+            status: "pending",
           },
-        }),
-      ]);
+        });
+
+        if (pendingTransaction) {
+          await tx.transaction.update({
+            where: { id: pendingTransaction.id },
+            data: {
+              status: "completed",
+              completedAt: new Date(),
+              metadata: { provider: "stripe", paymentIntentId: paymentIntent.id },
+            },
+          });
+        } else {
+          await tx.transaction.create({
+            data: {
+              escrowAccountId,
+              actorId: escrow.project.clientId,
+              type: "deposit",
+              method: "bank_transfer",
+              amount,
+              status: "completed",
+              reference: paymentIntent.id,
+              completedAt: new Date(),
+              metadata: { provider: "stripe", paymentIntentId: paymentIntent.id },
+            },
+          });
+        }
+      });
+
+      await notifyProjectParticipants({
+        projectId: escrow.projectId,
+        excludeUserId: escrow.project.clientId,
+        title: "Payment completed",
+        body: `Deposit of ${amount} ${escrow.project.currency} was completed for ${escrow.project.name}`,
+        data: {
+          type: "stripe_deposit_completed",
+          escrowAccountId,
+          paymentIntentId: paymentIntent.id,
+        },
+      });
 
       logger.info(`Escrow deposit confirmed: +${amount} to account ${escrowAccountId} via Stripe`);
     } catch (dbErr) {

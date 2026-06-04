@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const verification_controller_1 = require("./verification.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const role_middleware_1 = require("../middleware/role.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("admin"), verification_controller_1.createVerification);
+router.get("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("admin"), verification_controller_1.getVerifications);
+router.get("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("admin"), verification_controller_1.getVerificationById);
+router.put("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("admin"), verification_controller_1.updateVerification);
+router.delete("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("admin"), verification_controller_1.deleteVerification);
+exports.default = router;

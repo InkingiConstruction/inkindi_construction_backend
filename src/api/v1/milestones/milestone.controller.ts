@@ -13,6 +13,7 @@
 
 import { Request, Response } from "express";
 import { MilestoneService } from "./milestone.service";
+import { notifyProjectParticipants } from "../../../lib/notifications.js";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -27,6 +28,16 @@ const getParamId = (id: string | string[] | undefined) =>
 export const createMilestone = async (req: Request, res: Response) => {
   try {
     const milestone = await MilestoneService.createMilestone(req.body, req.user.id, req.user.role);
+    await notifyProjectParticipants({
+      projectId: milestone.projectId,
+      excludeUserId: req.user.id,
+      title: "New milestone created",
+      body: `${milestone.name} was added to ${milestone.project.name}`,
+      data: {
+        type: "milestone_created",
+        milestoneId: milestone.id,
+      },
+    });
     return res.status(201).json({ message: "Milestone created successfully", milestone });
   } catch (error: any) {
     console.error("Create milestone error:", error);
@@ -71,6 +82,19 @@ export const updateMilestone = async (req: Request, res: Response) => {
     if (!id) return res.status(400).json({ message: "Milestone ID is required" });
 
     const milestone = await MilestoneService.updateMilestone(id, req.body, req.user.id, req.user.role);
+    if (req.body.status !== undefined) {
+      await notifyProjectParticipants({
+        projectId: milestone.projectId,
+        excludeUserId: req.user.id,
+        title: "Milestone status updated",
+        body: `${milestone.name} is now ${milestone.status}`,
+        data: {
+          type: "milestone_status_updated",
+          milestoneId: milestone.id,
+          status: milestone.status,
+        },
+      });
+    }
     return res.json({ message: "Milestone updated successfully", milestone });
   } catch (error: any) {
     console.error("Update milestone error:", error);

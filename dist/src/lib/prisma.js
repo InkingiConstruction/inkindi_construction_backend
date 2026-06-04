@@ -1,11 +1,7 @@
-import dotenv from "dotenv";
-dotenv.config();
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-    throw new Error("DATABASE_URL is required");
-}
-const adapter = new PrismaPg(connectionString);
-const prisma = new PrismaClient({ adapter });
-export default prisma;
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const db_js_1 = __importDefault(require("../config/db.js"));
+exports.default = db_js_1.default;

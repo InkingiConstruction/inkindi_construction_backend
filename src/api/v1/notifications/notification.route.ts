@@ -4,6 +4,7 @@ import {
   deleteNotification,
   getNotificationById,
   getNotifications,
+  registerExpoPushToken,
   updateNotification,
 } from "./notification.controller";
 import { requiredAuth } from "../middleware/auth.middleware";
@@ -13,6 +14,7 @@ const router = Router();
 
 router.post("/", requiredAuth, requireRole("admin"), createNotification);
 router.get("/", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), getNotifications);
+router.post("/expo-token", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), registerExpoPushToken);
 router.get("/:id", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), getNotificationById);
 router.put("/:id", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), updateNotification);
 router.delete("/:id", requiredAuth, requireRole("client", "engineer", "supervisor", "supplier", "admin"), deleteNotification);

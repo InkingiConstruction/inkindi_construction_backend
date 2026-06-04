@@ -104,17 +104,44 @@ const deleteCloudinaryFiles = async (publicIds: string[]) => {
  * PRINCIPLE       : SOLID
  */
 const canReadProject = (project: any, userId: string, role: string) => {
-  if (role === "admin") return true;
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (normalizedRole === "admin") return true;
   if (project.clientId === userId) return true;
   if (project.engineerId === userId) return true;
-  return Boolean(project.projectMembers?.some((m: any) => m.userId === userId));
+  return Boolean(
+    project.projectMembers?.some(
+      (m: any) =>
+        m.userId === userId &&
+        m.status === "accepted" &&
+        (normalizedRole === "admin" || String(m.role).toLowerCase() === normalizedRole),
+    ),
+  );
 };
 
 const canUpdateProject = (project: any, userId: string, role: string) => {
-  if (role === "admin") return true;
-  if (role === "client") return project.clientId === userId;
-  if (role === "engineer") return project.engineerId === userId;
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (normalizedRole === "admin") return true;
+  if (normalizedRole === "client") return project.clientId === userId;
+  if (normalizedRole === "engineer") return project.engineerId === userId;
   return false;
+};
+
+const projectListInclude = {
+  client: {
+    select: { id: true, name: true, email: true, role: true, image: true },
+  },
+  engineer: {
+    select: { id: true, name: true, email: true, role: true, image: true },
+  },
+  projectMembers: {
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, role: true, image: true },
+      },
+    },
+  },
+  milestones: true,
+  escrowAccount: true,
 };
 
 export class ProjectService {
@@ -152,25 +179,39 @@ export class ProjectService {
     const uploaded = await uploadProjectFiles(files);
     const bodyArchitecturalPlans = parseJsonField(architecturalPlans);
 
-    return await prisma.project.create({
-      data: {
-        name,
-        description,
-        status,
-        budget,
-        currency,
-        address,
-        gpsBoundary: parseJsonField(gpsBoundary),
-        sitePhotos: uploaded.sitePhotos,
-        architecturalPlans:
-          uploaded.architecturalPlans.length > 0
-            ? uploaded.architecturalPlans
-            : bodyArchitecturalPlans || [],
-        startDate: startDate ? new Date(startDate) : undefined,
-        endDate: endDate ? new Date(endDate) : undefined,
-        clientId: userId,
-        engineerId: engineerId || undefined,
-      },
+    return await prisma.$transaction(async (tx) => {
+      const project = await tx.project.create({
+        data: {
+          name,
+          description,
+          status,
+          budget,
+          currency,
+          address,
+          gpsBoundary: parseJsonField(gpsBoundary),
+          sitePhotos: uploaded.sitePhotos,
+          architecturalPlans:
+            uploaded.architecturalPlans.length > 0
+              ? uploaded.architecturalPlans
+              : bodyArchitecturalPlans || [],
+          startDate: startDate ? new Date(startDate) : undefined,
+          endDate: endDate ? new Date(endDate) : undefined,
+          clientId: userId,
+          engineerId: engineerId || undefined,
+        },
+      });
+
+      await tx.escrowAccount.create({
+        data: {
+          projectId: project.id,
+          currency: currency || "RWF",
+        },
+      });
+
+      return await tx.project.findUniqueOrThrow({
+        where: { id: project.id },
+        include: projectListInclude,
+      });
     });
   }
 
@@ -182,20 +223,36 @@ export class ProjectService {
    * ============================================================================
    */
   static async getProjects(role: string, userId: string) {
-    if (role === "client") {
-      return await prisma.project.findMany({ where: { clientId: userId } });
-    } else if (role === "engineer") {
+    const normalizedRole = String(role || "").trim().toLowerCase();
+
+    if (normalizedRole === "client") {
+      return await prisma.project.findMany({
+        where: { clientId: userId },
+        include: projectListInclude,
+        orderBy: { createdAt: "desc" },
+      });
+    } else if (normalizedRole === "engineer") {
       return await prisma.project.findMany({
         where: {
-          OR: [{ engineerId: userId }, { projectMembers: { some: { userId } } }],
+          OR: [
+            { engineerId: userId },
+            { projectMembers: { some: { userId, role: "engineer", status: "accepted" } } },
+          ],
         },
+        include: projectListInclude,
+        orderBy: { createdAt: "desc" },
       });
-    } else if (role === "supervisor" || role === "supplier") {
+    } else if (normalizedRole === "supervisor" || normalizedRole === "supplier") {
       return await prisma.project.findMany({
-        where: { projectMembers: { some: { userId } } },
+        where: { projectMembers: { some: { userId, role: normalizedRole, status: "accepted" } } },
+        include: projectListInclude,
+        orderBy: { createdAt: "desc" },
       });
     }
-    return await prisma.project.findMany();
+    return await prisma.project.findMany({
+      include: projectListInclude,
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   /**

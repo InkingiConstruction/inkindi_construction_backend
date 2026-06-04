@@ -1,13 +1,10 @@
-import { auth } from "../config/auth";
-
-type BetterAuthSession = Awaited<ReturnType<typeof auth.api.getSession>>;
+import { User } from "@prisma/client";
 
 declare global {
   namespace Express {
     interface Request {
-      session?: BetterAuthSession;
-      user?: BetterAuthSession["user"];
-      role?: BetterAuthSession["user"]["role"];
+      user: User;
+      role: User["role"];
     }
   }
 }
