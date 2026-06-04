@@ -126,7 +126,7 @@ const canManageProgressPhoto = (
 
 export const createProgressPhoto = async (req: Request, res: Response) => {
   try {
-    const { projectId, milestoneId, progressGroupId, gpsLocation, caption, videoDuration } =
+    const { projectId, milestoneId, progressGroupId, notifyOnUpload, gpsLocation, caption, videoDuration } =
       req.body;
     const files = (req.files as Express.Multer.File[]) || [];
 
@@ -218,21 +218,24 @@ export const createProgressPhoto = async (req: Request, res: Response) => {
       (member) => member.role === "supervisor" && member.status === "accepted",
     );
 
-    await notifyUsers(
-      supervisors
-        .map((member) => member.userId)
-        .filter((userId) => userId !== req.user.id),
-      {
-        title: "Progress update needs review",
-        body: `${progressPhotos.length} progress ${progressPhotos.length === 1 ? "item" : "items"} uploaded for ${project.name}`,
-        data: {
-          type: "progress_media_uploaded",
-          projectId: project.id,
-          progressPhotoIds: progressPhotos.map((photo) => photo.id),
-          milestoneId: milestoneId ? String(milestoneId) : undefined,
+    if (notifyOnUpload !== "false") {
+      await notifyUsers(
+        supervisors
+          .map((member) => member.userId)
+          .filter((userId) => userId !== req.user.id),
+        {
+          title: "Progress update needs review",
+          body: `${progressPhotos.length} progress ${progressPhotos.length === 1 ? "item" : "items"} uploaded for ${project.name}`,
+          data: {
+            type: "progress_media_uploaded",
+            projectId: project.id,
+            progressGroupId: progressGroupId ? String(progressGroupId) : undefined,
+            progressPhotoIds: progressPhotos.map((photo) => photo.id),
+            milestoneId: milestoneId ? String(milestoneId) : undefined,
+          },
         },
-      },
-    );
+      );
+    }
 
     return res.status(201).json({
       message: "Progress media uploaded successfully",

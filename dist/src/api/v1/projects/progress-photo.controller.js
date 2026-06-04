@@ -80,7 +80,7 @@ const canManageProgressPhoto = (photo, userId, role) => {
 };
 const createProgressPhoto = async (req, res) => {
     try {
-        const { projectId, milestoneId, progressGroupId, gpsLocation, caption, videoDuration } = req.body;
+        const { projectId, milestoneId, progressGroupId, notifyOnUpload, gpsLocation, caption, videoDuration } = req.body;
         const files = req.files || [];
         if (!projectId) {
             return res.status(400).json({ message: "projectId is required" });
@@ -153,18 +153,21 @@ const createProgressPhoto = async (req, res) => {
             });
         }));
         const supervisors = project.projectMembers.filter((member) => member.role === "supervisor" && member.status === "accepted");
-        await (0, notifications_js_1.notifyUsers)(supervisors
-            .map((member) => member.userId)
-            .filter((userId) => userId !== req.user.id), {
-            title: "Progress update needs review",
-            body: `${progressPhotos.length} progress ${progressPhotos.length === 1 ? "item" : "items"} uploaded for ${project.name}`,
-            data: {
-                type: "progress_media_uploaded",
-                projectId: project.id,
-                progressPhotoIds: progressPhotos.map((photo) => photo.id),
-                milestoneId: milestoneId ? String(milestoneId) : undefined,
-            },
-        });
+        if (notifyOnUpload !== "false") {
+            await (0, notifications_js_1.notifyUsers)(supervisors
+                .map((member) => member.userId)
+                .filter((userId) => userId !== req.user.id), {
+                title: "Progress update needs review",
+                body: `${progressPhotos.length} progress ${progressPhotos.length === 1 ? "item" : "items"} uploaded for ${project.name}`,
+                data: {
+                    type: "progress_media_uploaded",
+                    projectId: project.id,
+                    progressGroupId: progressGroupId ? String(progressGroupId) : undefined,
+                    progressPhotoIds: progressPhotos.map((photo) => photo.id),
+                    milestoneId: milestoneId ? String(milestoneId) : undefined,
+                },
+            });
+        }
         return res.status(201).json({
             message: "Progress media uploaded successfully",
             progressPhotos,
