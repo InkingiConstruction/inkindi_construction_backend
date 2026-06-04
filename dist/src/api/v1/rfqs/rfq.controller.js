@@ -87,7 +87,19 @@ const createRfq = async (req, res) => {
                         role: true,
                     },
                 },
-                quotes: true,
+                quotes: {
+                    include: {
+                        supplier: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                image: true,
+                                role: true,
+                            },
+                        },
+                    },
+                },
             },
         });
         const suppliers = await prisma_js_1.default.user.findMany({
@@ -166,8 +178,31 @@ const getRfqs = async (req, res) => {
                 quotes: req.user.role === "supplier"
                     ? {
                         where: { supplierId: req.user.id },
+                        include: {
+                            supplier: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                    image: true,
+                                    role: true,
+                                },
+                            },
+                        },
                     }
-                    : true,
+                    : {
+                        include: {
+                            supplier: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                    image: true,
+                                    role: true,
+                                },
+                            },
+                        },
+                    },
                 purchaseOrder: true,
             },
             orderBy: { createdAt: "desc" },
@@ -207,8 +242,31 @@ const getRfqById = async (req, res) => {
                 quotes: req.user.role === "supplier"
                     ? {
                         where: { supplierId: req.user.id },
+                        include: {
+                            supplier: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                    image: true,
+                                    role: true,
+                                },
+                            },
+                        },
                     }
-                    : true,
+                    : {
+                        include: {
+                            supplier: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                    image: true,
+                                    role: true,
+                                },
+                            },
+                        },
+                    },
                 purchaseOrder: true,
             },
         });

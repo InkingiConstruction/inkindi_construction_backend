@@ -118,7 +118,19 @@ export const createRfq = async (req: Request, res: Response) => {
             role: true,
           },
         },
-        quotes: true,
+        quotes: {
+          include: {
+            supplier: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -208,8 +220,31 @@ export const getRfqs = async (req: Request, res: Response) => {
           req.user.role === "supplier"
             ? {
                 where: { supplierId: req.user.id },
+                include: {
+                  supplier: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      image: true,
+                      role: true,
+                    },
+                  },
+                },
               }
-            : true,
+            : {
+                include: {
+                  supplier: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      image: true,
+                      role: true,
+                    },
+                  },
+                },
+              },
         purchaseOrder: true,
       },
       orderBy: { createdAt: "desc" },
@@ -252,8 +287,31 @@ export const getRfqById = async (req: Request, res: Response) => {
           req.user.role === "supplier"
             ? {
                 where: { supplierId: req.user.id },
+                include: {
+                  supplier: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      image: true,
+                      role: true,
+                    },
+                  },
+                },
               }
-            : true,
+            : {
+                include: {
+                  supplier: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      image: true,
+                      role: true,
+                    },
+                  },
+                },
+              },
         purchaseOrder: true,
       },
     });
