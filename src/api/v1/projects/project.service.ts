@@ -376,6 +376,10 @@ export class ProjectService {
       status = statuses[nextIndex];
     }
 
+    if (String(role || "").trim().toLowerCase() === "client" && status === "paused" && existing.status !== "draft") {
+      throw new Error("Client can only pause a project while it is still pending");
+    }
+
     return await prisma.project.update({
       where: { id: projectId },
       data: { status },

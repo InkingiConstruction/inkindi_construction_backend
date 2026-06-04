@@ -80,7 +80,7 @@ const canManageProgressPhoto = (photo, userId, role) => {
 };
 const createProgressPhoto = async (req, res) => {
     try {
-        const { projectId, milestoneId, gpsLocation, caption, videoDuration } = req.body;
+        const { projectId, milestoneId, progressGroupId, gpsLocation, caption, videoDuration } = req.body;
         const files = req.files || [];
         if (!projectId) {
             return res.status(400).json({ message: "projectId is required" });
@@ -96,6 +96,11 @@ const createProgressPhoto = async (req, res) => {
         });
         if (!project) {
             return res.status(404).json({ message: "Project not found" });
+        }
+        if (project.status !== "active") {
+            return res.status(400).json({
+                message: "Progress can only be uploaded after the project is active",
+            });
         }
         if (!canUploadProgress(project, req.user.id, req.user.role)) {
             return res.status(403).json({
@@ -123,6 +128,7 @@ const createProgressPhoto = async (req, res) => {
                 data: {
                     projectId: project.id,
                     milestoneId: milestoneId || undefined,
+                    progressGroupId: progressGroupId ? String(progressGroupId) : undefined,
                     uploadedById: req.user.id,
                     cloudinaryUrl: upload.secure_url,
                     publicId: upload.public_id,

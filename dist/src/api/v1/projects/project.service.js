@@ -347,6 +347,9 @@ class ProjectService {
             const nextIndex = currentIndex === statuses.length - 1 ? 0 : currentIndex + 1;
             status = statuses[nextIndex];
         }
+        if (String(role || "").trim().toLowerCase() === "client" && status === "paused" && existing.status !== "draft") {
+            throw new Error("Client can only pause a project while it is still pending");
+        }
         return await db_js_1.default.project.update({
             where: { id: projectId },
             data: { status },
