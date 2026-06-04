@@ -3,8 +3,13 @@ import multer from "multer";
 const storage = multer.memoryStorage();
 
 const fileFilter: multer.Options["fileFilter"] = (_req, file, callback) => {
-  if (!file.mimetype.startsWith("image/") && !file.mimetype.startsWith("video/")) {
-    return callback(new Error("Only image and video uploads are allowed"));
+  const allowed =
+    file.mimetype.startsWith("image/") ||
+    file.mimetype.startsWith("video/") ||
+    file.mimetype === "application/pdf";
+
+  if (!allowed) {
+    return callback(new Error("Only image, video, and PDF uploads are allowed"));
   }
 
   return callback(null, true);

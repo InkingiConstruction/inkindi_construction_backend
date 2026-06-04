@@ -83,14 +83,18 @@ export const updateMilestone = async (req: Request, res: Response) => {
 
     const milestone = await MilestoneService.updateMilestone(id, req.body, req.user.id, req.user.role);
     if (req.body.status !== undefined) {
+      const isReviewRequest = milestone.status === "pending_supervisor";
       await notifyProjectParticipants({
         projectId: milestone.projectId,
         excludeUserId: req.user.id,
-        title: "Milestone status updated",
-        body: `${milestone.name} is now ${milestone.status}`,
+        title: isReviewRequest ? "Milestone and BOQ ready for review" : "Milestone status updated",
+        body: isReviewRequest
+          ? `${milestone.name} was submitted with its BOQ package for supervisor review`
+          : `${milestone.name} is now ${milestone.status}`,
         data: {
-          type: "milestone_status_updated",
+          type: isReviewRequest ? "milestone_review_requested" : "milestone_status_updated",
           milestoneId: milestone.id,
+          projectId: milestone.projectId,
           status: milestone.status,
         },
       });

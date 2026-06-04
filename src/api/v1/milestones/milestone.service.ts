@@ -22,8 +22,15 @@ const canReadMilestones = (project: any, userId: string, role: string) => {
   return Boolean(project.projectMembers?.some((m: any) => m.userId === userId && m.status === "accepted"));
 };
 
-const canManageMilestone = (milestone: any, userId: string, role: string) => {
+const canManageMilestone = (milestone: any, userId: string, role: string, body?: any) => {
   if (role === "admin") return true;
+  if (role === "client") {
+    const onlyRequestsRevision =
+      milestone.project.clientId === userId &&
+      body?.status === "revision_required" &&
+      Object.keys(body).every((key) => ["status", "revisionNotes", "clientNotes"].includes(key));
+    return onlyRequestsRevision;
+  }
   if (role === "engineer") return milestone.engineerId === userId;
   if (role === "supervisor") {
     return Boolean(
@@ -63,8 +70,8 @@ export class MilestoneService {
   static async createMilestone(body: any, userId: string, userRole: string) {
     const { projectId, name, description, budgetPercentage, durationDays, acceptanceCriteria, dependsOn, order, status } = body;
 
-    if (!projectId || !name || budgetPercentage === undefined || order === undefined) {
-      throw new Error("projectId, name, budgetPercentage and order are required");
+    if (!projectId || !name || order === undefined) {
+      throw new Error("projectId, name and order are required");
     }
     if (status !== undefined && !isMilestoneStatus(status)) throw new Error("Invalid milestone status");
 
@@ -84,13 +91,14 @@ export class MilestoneService {
       if (!dep) throw new Error("dependsOn milestone must belong to the same project");
     }
 
-    const nextTotal = project.milestones.reduce((sum, m) => sum + Number(m.budgetPercentage), Number(budgetPercentage));
+    const nextBudgetPercentage = budgetPercentage === undefined ? 0 : Number(budgetPercentage);
+    const nextTotal = project.milestones.reduce((sum, m) => sum + Number(m.budgetPercentage), nextBudgetPercentage);
     if (nextTotal > 100) throw new Error("Total milestone budget percentage cannot exceed 100");
 
     return await prisma.milestone.create({
       data: {
         projectId: project.id, engineerId: engineerId!, name: String(name), description,
-        budgetPercentage: String(budgetPercentage),
+        budgetPercentage: String(nextBudgetPercentage),
         durationDays: durationDays !== undefined ? Number(durationDays) : undefined,
         acceptanceCriteria, dependsOn: dependsOn || undefined, order: Number(order), status: status || undefined,
       },
@@ -119,6 +127,17 @@ export class MilestoneService {
       include: {
         project: true,
         engineer: { select: engineerSelect },
+        boqItems: {
+          include: {
+            supplierInventoryItem: {
+              include: {
+                supplier: {
+                  select: { id: true, name: true, email: true, image: true, role: true },
+                },
+              },
+            },
+          },
+        },
         _count: { select: { boqItems: true, inspections: true, rfqs: true, progressPhotos: true, disputes: true, transactions: true } },
       },
       orderBy: [{ projectId: "asc" }, { order: "asc" }, { createdAt: "desc" }],
@@ -131,7 +150,18 @@ export class MilestoneService {
       include: {
         project: { include: { projectMembers: true } },
         engineer: { select: engineerSelect },
-        boqItems: true, inspections: true, progressPhotos: true, rfqs: true, transactions: true, disputes: true,
+        boqItems: {
+          include: {
+            supplierInventoryItem: {
+              include: {
+                supplier: {
+                  select: { id: true, name: true, email: true, image: true, role: true },
+                },
+              },
+            },
+          },
+        },
+        inspections: true, progressPhotos: true, rfqs: true, transactions: true, disputes: true,
       },
     });
 
@@ -150,7 +180,7 @@ export class MilestoneService {
     });
 
     if (!existing) throw new Error("Milestone not found");
-    if (!canManageMilestone(existing, userId, userRole)) throw new Error("Forbidden");
+    if (!canManageMilestone(existing, userId, userRole, body)) throw new Error("Forbidden");
 
     if (body.dependsOn) {
       const dep = await prisma.milestone.findFirst({

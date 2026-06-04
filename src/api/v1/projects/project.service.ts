@@ -32,7 +32,7 @@ export type ProjectMediaItem = {
 const uploadImage = (file: Express.Multer.File, folder: string) =>
   new Promise<UploadApiResponse>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder, resource_type: "image" },
+      { folder, resource_type: "auto" },
       (error, result) => {
         if (error || !result) return reject(error);
         resolve(result);
@@ -161,10 +161,15 @@ export class ProjectService {
     const {
       name,
       description,
+      category,
       status,
       budget,
       currency,
       address,
+      area,
+      upi,
+      ownerName,
+      landUse,
       gpsBoundary,
       architecturalPlans,
       startDate,
@@ -184,10 +189,15 @@ export class ProjectService {
         data: {
           name,
           description,
+          category: category || undefined,
           status,
           budget,
           currency,
           address,
+          area: area !== undefined && area !== "" ? area : undefined,
+          upi: upi || undefined,
+          ownerName: ownerName || undefined,
+          landUse: landUse || undefined,
           gpsBoundary: parseJsonField(gpsBoundary),
           sitePhotos: uploaded.sitePhotos,
           architecturalPlans:
@@ -297,10 +307,15 @@ export class ProjectService {
     const updateData: Prisma.ProjectUpdateInput = {};
     if (body.name !== undefined) updateData.name = String(body.name);
     if (body.description !== undefined) updateData.description = String(body.description);
+    if (body.category !== undefined) updateData.category = String(body.category);
     if (body.status !== undefined) updateData.status = body.status as any;
     if (body.budget !== undefined) updateData.budget = String(body.budget);
     if (body.currency !== undefined) updateData.currency = String(body.currency);
     if (body.address !== undefined) updateData.address = String(body.address);
+    if (body.area !== undefined) updateData.area = String(body.area);
+    if (body.upi !== undefined) updateData.upi = String(body.upi);
+    if (body.ownerName !== undefined) updateData.ownerName = String(body.ownerName);
+    if (body.landUse !== undefined) updateData.landUse = String(body.landUse);
     if (body.gpsBoundary !== undefined) updateData.gpsBoundary = parseJsonField(body.gpsBoundary);
     if (body.startDate !== undefined) updateData.startDate = new Date(String(body.startDate));
     if (body.endDate !== undefined) updateData.endDate = new Date(String(body.endDate));
@@ -359,6 +374,10 @@ export class ProjectService {
       const currentIndex = statuses.indexOf(existing.status);
       const nextIndex = currentIndex === statuses.length - 1 ? 0 : currentIndex + 1;
       status = statuses[nextIndex];
+    }
+
+    if (String(role || "").trim().toLowerCase() === "client" && status === "paused" && existing.status !== "draft") {
+      throw new Error("Client can only pause a project while it is still pending");
     }
 
     return await prisma.project.update({

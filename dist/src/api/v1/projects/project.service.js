@@ -26,7 +26,7 @@ const db_js_1 = __importDefault(require("../../../config/db.js"));
  * PRINCIPLE       : KISS
  */
 const uploadImage = (file, folder) => new Promise((resolve, reject) => {
-    const stream = cloudinary_js_1.default.uploader.upload_stream({ folder, resource_type: "image" }, (error, result) => {
+    const stream = cloudinary_js_1.default.uploader.upload_stream({ folder, resource_type: "auto" }, (error, result) => {
         if (error || !result)
             return reject(error);
         resolve(result);
@@ -143,7 +143,7 @@ class ProjectService {
      * ============================================================================
      */
     static async createProject(userId, body, files) {
-        const { name, description, status, budget, currency, address, gpsBoundary, architecturalPlans, startDate, endDate, engineerId, } = body;
+        const { name, description, category, status, budget, currency, address, area, upi, ownerName, landUse, gpsBoundary, architecturalPlans, startDate, endDate, engineerId, } = body;
         if (!name || !budget) {
             throw new Error("Missing required fields (name, budget)");
         }
@@ -154,10 +154,15 @@ class ProjectService {
                 data: {
                     name,
                     description,
+                    category: category || undefined,
                     status,
                     budget,
                     currency,
                     address,
+                    area: area !== undefined && area !== "" ? area : undefined,
+                    upi: upi || undefined,
+                    ownerName: ownerName || undefined,
+                    landUse: landUse || undefined,
                     gpsBoundary: parseJsonField(gpsBoundary),
                     sitePhotos: uploaded.sitePhotos,
                     architecturalPlans: uploaded.architecturalPlans.length > 0
@@ -264,6 +269,8 @@ class ProjectService {
             updateData.name = String(body.name);
         if (body.description !== undefined)
             updateData.description = String(body.description);
+        if (body.category !== undefined)
+            updateData.category = String(body.category);
         if (body.status !== undefined)
             updateData.status = body.status;
         if (body.budget !== undefined)
@@ -272,6 +279,14 @@ class ProjectService {
             updateData.currency = String(body.currency);
         if (body.address !== undefined)
             updateData.address = String(body.address);
+        if (body.area !== undefined)
+            updateData.area = String(body.area);
+        if (body.upi !== undefined)
+            updateData.upi = String(body.upi);
+        if (body.ownerName !== undefined)
+            updateData.ownerName = String(body.ownerName);
+        if (body.landUse !== undefined)
+            updateData.landUse = String(body.landUse);
         if (body.gpsBoundary !== undefined)
             updateData.gpsBoundary = parseJsonField(body.gpsBoundary);
         if (body.startDate !== undefined)
@@ -331,6 +346,9 @@ class ProjectService {
             const currentIndex = statuses.indexOf(existing.status);
             const nextIndex = currentIndex === statuses.length - 1 ? 0 : currentIndex + 1;
             status = statuses[nextIndex];
+        }
+        if (String(role || "").trim().toLowerCase() === "client" && status === "paused" && existing.status !== "draft") {
+            throw new Error("Client can only pause a project while it is still pending");
         }
         return await db_js_1.default.project.update({
             where: { id: projectId },

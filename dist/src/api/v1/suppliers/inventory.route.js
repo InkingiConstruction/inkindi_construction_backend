@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const inventory_controller_1 = require("./inventory.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const role_middleware_1 = require("../middleware/role.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("supplier", "admin"), inventory_controller_1.createInventoryItem);
+router.get("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "admin"), inventory_controller_1.getInventoryItems);
+router.put("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("supplier", "admin"), inventory_controller_1.updateInventoryItem);
+router.delete("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("supplier", "admin"), inventory_controller_1.deleteInventoryItem);
+exports.default = router;

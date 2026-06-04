@@ -7,8 +7,11 @@ exports.uploadImages = exports.upload = void 0;
 const multer_1 = __importDefault(require("multer"));
 const storage = multer_1.default.memoryStorage();
 const fileFilter = (_req, file, callback) => {
-    if (!file.mimetype.startsWith("image/") && !file.mimetype.startsWith("video/")) {
-        return callback(new Error("Only image and video uploads are allowed"));
+    const allowed = file.mimetype.startsWith("image/") ||
+        file.mimetype.startsWith("video/") ||
+        file.mimetype === "application/pdf";
+    if (!allowed) {
+        return callback(new Error("Only image, video, and PDF uploads are allowed"));
     }
     return callback(null, true);
 };

@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteBoqItem = exports.updateBoqItem = exports.getBoqItemById = exports.getBoqItems = exports.createBoqItem = void 0;
 const db_js_1 = __importDefault(require("../../../config/db.js"));
-const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const canReadProject = (project, userId, role) => {
     if (role === "admin")
@@ -27,9 +26,7 @@ const buildBoqUpdateData = (body, current) => {
     const quantity = body.quantity !== undefined
         ? Number(body.quantity)
         : Number(current.quantity);
-    const unitPrice = body.unitPrice !== undefined
-        ? Number(body.unitPrice)
-        : Number(current.unitPrice);
+    const unitPrice = Number(current.unitPrice);
     if (body.category !== undefined)
         data.category = String(body.category);
     if (body.name !== undefined)
@@ -38,8 +35,6 @@ const buildBoqUpdateData = (body, current) => {
         data.quantity = String(body.quantity);
     if (body.unit !== undefined)
         data.unit = String(body.unit);
-    if (body.unitPrice !== undefined)
-        data.unitPrice = String(body.unitPrice);
     if (body.actualCost !== undefined) {
         data.actualCost = body.actualCost ? String(body.actualCost) : null;
     }
@@ -48,22 +43,19 @@ const buildBoqUpdateData = (body, current) => {
     if (body.totalPrice !== undefined) {
         data.totalPrice = String(body.totalPrice);
     }
-    else if (body.quantity !== undefined || body.unitPrice !== undefined) {
+    else if (body.quantity !== undefined) {
         data.totalPrice = String(calculateTotalPrice(quantity, unitPrice));
     }
     return data;
 };
 const createBoqItem = async (req, res) => {
     try {
-        const { milestoneId, category, name, quantity, unit, unitPrice, totalPrice, actualCost, notes, } = req.body;
+        const { milestoneId, supplierInventoryItemId, category, name, quantity, unit, unitPrice, totalPrice, actualCost, notes, } = req.body;
         if (!milestoneId ||
-            !category ||
-            !name ||
             quantity === undefined ||
-            !unit ||
-            unitPrice === undefined) {
+            (!supplierInventoryItemId && (!category || !name || !unit || unitPrice === undefined))) {
             return res.status(400).json({
-                message: "milestoneId, category, name, quantity, unit and unitPrice are required",
+                message: "milestoneId, quantity and either supplierInventoryItemId or category/name/unit/unitPrice are required",
             });
         }
         const milestone = await db_js_1.default.milestone.findUnique({
@@ -84,35 +76,44 @@ const createBoqItem = async (req, res) => {
                 message: "Only the milestone engineer or admin can create BOQ items",
             });
         }
+        const inventoryItem = supplierInventoryItemId
+            ? await db_js_1.default.supplierInventoryItem.findFirst({
+                where: { id: String(supplierInventoryItemId), available: true },
+            })
+            : null;
+        if (supplierInventoryItemId && !inventoryItem) {
+            return res.status(400).json({ message: "Selected supplier inventory item is not available" });
+        }
+        const lockedCategory = inventoryItem?.category || String(category);
+        const lockedName = inventoryItem?.name || String(name);
+        const lockedUnit = inventoryItem?.unit || String(unit);
+        const lockedUnitPrice = inventoryItem?.unitPrice ?? unitPrice;
         const boqItem = await db_js_1.default.boqItem.create({
             data: {
                 milestoneId: milestone.id,
-                category: String(category),
-                name: String(name),
+                supplierInventoryItemId: inventoryItem?.id,
+                category: lockedCategory,
+                name: lockedName,
                 quantity: String(quantity),
-                unit: String(unit),
-                unitPrice: String(unitPrice),
-                totalPrice: String(totalPrice ?? calculateTotalPrice(quantity, unitPrice)),
+                unit: lockedUnit,
+                unitPrice: String(lockedUnitPrice),
+                totalPrice: String(totalPrice ?? calculateTotalPrice(quantity, lockedUnitPrice)),
                 actualCost: actualCost !== undefined ? String(actualCost) : undefined,
                 notes,
             },
             include: {
+                supplierInventoryItem: {
+                    include: {
+                        supplier: {
+                            select: { id: true, name: true, email: true, image: true, role: true },
+                        },
+                    },
+                },
                 milestone: {
                     include: {
                         project: true,
                     },
                 },
-            },
-        });
-        await (0, notifications_js_1.notifyProjectParticipants)({
-            projectId: boqItem.milestone.projectId,
-            excludeUserId: req.user.id,
-            title: "BOQ item added",
-            body: `${boqItem.name} was added to ${boqItem.milestone.name}`,
-            data: {
-                type: "boq_item_created",
-                boqItemId: boqItem.id,
-                milestoneId: boqItem.milestoneId,
             },
         });
         return res.status(201).json({
@@ -158,6 +159,13 @@ const getBoqItems = async (req, res) => {
                     }),
             },
             include: {
+                supplierInventoryItem: {
+                    include: {
+                        supplier: {
+                            select: { id: true, name: true, email: true, image: true, role: true },
+                        },
+                    },
+                },
                 milestone: {
                     include: {
                         project: true,
@@ -185,6 +193,13 @@ const getBoqItemById = async (req, res) => {
         const boqItem = await db_js_1.default.boqItem.findUnique({
             where: { id },
             include: {
+                supplierInventoryItem: {
+                    include: {
+                        supplier: {
+                            select: { id: true, name: true, email: true, image: true, role: true },
+                        },
+                    },
+                },
                 milestone: {
                     include: {
                         project: {
@@ -234,22 +249,18 @@ const updateBoqItem = async (req, res) => {
             where: { id },
             data: buildBoqUpdateData(req.body, existingBoqItem),
             include: {
+                supplierInventoryItem: {
+                    include: {
+                        supplier: {
+                            select: { id: true, name: true, email: true, image: true, role: true },
+                        },
+                    },
+                },
                 milestone: {
                     include: {
                         project: true,
                     },
                 },
-            },
-        });
-        await (0, notifications_js_1.notifyProjectParticipants)({
-            projectId: boqItem.milestone.projectId,
-            excludeUserId: req.user.id,
-            title: "BOQ item updated",
-            body: `${boqItem.name} was updated in ${boqItem.milestone.name}`,
-            data: {
-                type: "boq_item_updated",
-                boqItemId: boqItem.id,
-                milestoneId: boqItem.milestoneId,
             },
         });
         return res.json({
@@ -285,17 +296,6 @@ const deleteBoqItem = async (req, res) => {
         }
         await db_js_1.default.boqItem.delete({
             where: { id },
-        });
-        await (0, notifications_js_1.notifyProjectParticipants)({
-            projectId: boqItem.milestone.projectId,
-            excludeUserId: req.user.id,
-            title: "BOQ item removed",
-            body: `${boqItem.name} was removed from the BOQ`,
-            data: {
-                type: "boq_item_deleted",
-                boqItemId: boqItem.id,
-                milestoneId: boqItem.milestoneId,
-            },
         });
         return res.json({ message: "BOQ item deleted successfully" });
     }
