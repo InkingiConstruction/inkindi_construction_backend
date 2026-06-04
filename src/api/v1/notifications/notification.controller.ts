@@ -223,14 +223,21 @@ export const getNotifications = async (req: Request, res: Response) => {
       typeof req.query.status === "string" ? req.query.status : undefined;
     const userId =
       typeof req.query.userId === "string" ? req.query.userId : undefined;
+    const channel =
+      typeof req.query.channel === "string" ? req.query.channel : "in_app";
 
     if (status !== undefined && !isStatus(status)) {
       return res.status(400).json({ message: "Invalid notification status" });
     }
 
+    if (channel !== undefined && !isChannel(channel)) {
+      return res.status(400).json({ message: "Invalid notification channel" });
+    }
+
     const notifications = await prisma.notification.findMany({
       where: {
         ...(status ? { status } : {}),
+        ...(channel ? { channel } : {}),
         ...(userId && req.user.role === "admin"
           ? { userId }
           : { userId: req.user.id }),
