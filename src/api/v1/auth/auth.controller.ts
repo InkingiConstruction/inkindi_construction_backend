@@ -10,7 +10,7 @@ import {
   passwordResetTemplate,
 } from "../../../utils/email-tempelates.js";
 
-const allowedRoles = ["client", "engineer", "supervisor", "supplier", "admin"];
+const allowedRoles = ["client", "engineer", "supervisor", "supplier", "site_agent", "admin"];
 
 const selectUser = {
   id: true,

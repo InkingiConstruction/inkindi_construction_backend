@@ -21,6 +21,7 @@ const purchase_order_route_1 = __importDefault(require("./rfqs/purchase-order.ro
 const quote_route_1 = __importDefault(require("./quotes/quote.route"));
 const delivery_route_1 = __importDefault(require("./deliveries/delivery.route"));
 const inventory_route_1 = __importDefault(require("./suppliers/inventory.route"));
+const site_agent_route_1 = __importDefault(require("./site-agent/site-agent.route"));
 const inspection_route_1 = __importDefault(require("./inspections/inspection.route"));
 const dispute_route_1 = __importDefault(require("./disputes/dispute.route"));
 const dispute_evidence_route_1 = __importDefault(require("./disputes/dispute-evidence.route"));
@@ -48,6 +49,7 @@ router.use("/quotes", quote_route_1.default);
 router.use("/purchase-orders", purchase_order_route_1.default);
 router.use("/deliveries", delivery_route_1.default);
 router.use("/supplier-inventory", inventory_route_1.default);
+router.use("/site-agent", site_agent_route_1.default);
 router.use("/inspections", inspection_route_1.default);
 router.use("/disputes", dispute_route_1.default);
 router.use("/dispute-evidence", dispute_evidence_route_1.default);

@@ -95,7 +95,7 @@ const upsertRegistrationDocuments = async (
   );
 };
 
-const allowedSelfRoles = ["client", "engineer", "supervisor", "supplier"];
+const allowedSelfRoles = ["client", "engineer", "supervisor", "supplier", "site_agent"];
 
 const selectUser = {
   id: true,

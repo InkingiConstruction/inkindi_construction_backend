@@ -11,7 +11,7 @@ const mobile_jwt_js_1 = require("../../../utils/mobile-jwt.js");
 const password_js_1 = require("../../../utils/password.js");
 const resend_js_1 = require("../../../integrations/resend.js");
 const email_tempelates_js_1 = require("../../../utils/email-tempelates.js");
-const allowedRoles = ["client", "engineer", "supervisor", "supplier", "admin"];
+const allowedRoles = ["client", "engineer", "supervisor", "supplier", "site_agent", "admin"];
 const selectUser = {
     id: true,
     name: true,

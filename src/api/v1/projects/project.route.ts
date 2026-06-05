@@ -43,7 +43,7 @@ router.post("/", requiredAuth, requireRole("client"), uploadImages, createProjec
 router.get(
   "/", 
   requiredAuth, 
-  requireRole("client", "engineer", "supervisor", "supplier", "admin"), 
+  requireRole("client", "engineer", "supervisor", "supplier", "site_agent", "admin"), 
   cacheMiddleware(30), // Caches project listings for 30s
   getProjects
 );
@@ -51,7 +51,7 @@ router.get(
 router.get(
   "/:id", 
   requiredAuth, 
-  requireRole("client", "engineer", "supervisor", "supplier", "admin"), 
+  requireRole("client", "engineer", "supervisor", "supplier", "site_agent", "admin"), 
   cacheMiddleware(30), // Caches project detail pages for 30s
   getProjectById
 );

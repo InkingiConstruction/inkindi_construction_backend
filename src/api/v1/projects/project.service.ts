@@ -252,7 +252,7 @@ export class ProjectService {
         include: projectListInclude,
         orderBy: { createdAt: "desc" },
       });
-    } else if (normalizedRole === "supervisor" || normalizedRole === "supplier") {
+    } else if (normalizedRole === "supervisor" || normalizedRole === "supplier" || normalizedRole === "site_agent") {
       return await prisma.project.findMany({
         where: { projectMembers: { some: { userId, role: normalizedRole, status: "accepted" } } },
         include: projectListInclude,
