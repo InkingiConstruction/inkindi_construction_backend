@@ -41,6 +41,10 @@ export const walletQueue = new Queue<WalletEventData>("wallet-events", {
   },
 });
 
+walletQueue.on("error", (error) => {
+  logger.warn(`[wallet-queue] Queue connection issue: ${error.message}`);
+});
+
 /**
  * Worker: processes wallet events asynchronously.
  * Use job.name to dispatch on event type; job.data is the payload.
@@ -84,6 +88,10 @@ export const startWalletWorker = () => {
 
   worker.on("failed", (job, err) => {
     logger.error(`[wallet-queue] Job ${job?.id} failed:`, err);
+  });
+
+  worker.on("error", (error) => {
+    logger.warn(`[wallet-queue] Worker connection issue: ${error.message}`);
   });
 
   worker.on("completed", (job) => {

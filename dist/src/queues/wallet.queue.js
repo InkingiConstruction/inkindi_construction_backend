@@ -28,6 +28,9 @@ exports.walletQueue = new bullmq_1.Queue("wallet-events", {
         removeOnFail: { age: 604800 },
     },
 });
+exports.walletQueue.on("error", (error) => {
+    logger_middleware_js_1.logger.warn(`[wallet-queue] Queue connection issue: ${error.message}`);
+});
 /**
  * Worker: processes wallet events asynchronously.
  * Use job.name to dispatch on event type; job.data is the payload.
@@ -62,6 +65,9 @@ const startWalletWorker = () => {
     }, { connection, concurrency: 5 });
     worker.on("failed", (job, err) => {
         logger_middleware_js_1.logger.error(`[wallet-queue] Job ${job?.id} failed:`, err);
+    });
+    worker.on("error", (error) => {
+        logger_middleware_js_1.logger.warn(`[wallet-queue] Worker connection issue: ${error.message}`);
     });
     worker.on("completed", (job) => {
         logger_middleware_js_1.logger.info(`[wallet-queue] Job ${job.id} completed`);
