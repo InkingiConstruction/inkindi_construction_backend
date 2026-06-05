@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const dispute_controller_1 = require("./dispute.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const role_middleware_1 = require("../middleware/role.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supplier"), dispute_controller_1.createDispute);
+router.get("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supplier", "admin"), dispute_controller_1.getDisputes);
+router.get("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supplier", "admin"), dispute_controller_1.getDisputeById);
+router.put("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("admin"), dispute_controller_1.updateDispute);
+router.delete("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("admin"), dispute_controller_1.deleteDispute);
+exports.default = router;

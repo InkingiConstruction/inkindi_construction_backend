@@ -1,0 +1,591 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteTransaction = exports.updateTransaction = exports.getTransactionById = exports.getTransactions = exports.createTransaction = void 0;
+const client_1 = require("@prisma/client");
+const db_js_1 = __importDefault(require("../../../config/db.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
+const getParamId = (id) => Array.isArray(id) ? id[0] : id;
+const parseJsonField = (value) => {
+    if (!value)
+        return undefined;
+    if (typeof value !== "string")
+        return value;
+    try {
+        return JSON.parse(value);
+    }
+    catch {
+        return value;
+    }
+};
+const isTransactionType = (value) => typeof value === "string" &&
+    Object.values(client_1.TransactionType).includes(value);
+const isTransactionStatus = (value) => typeof value === "string" &&
+    Object.values(client_1.TransactionStatus).includes(value);
+const isPaymentMethod = (value) => typeof value === "string" &&
+    Object.values(client_1.PaymentMethod).includes(value);
+const canReadProjectTransactions = (project, userId, role) => {
+    if (role === "admin")
+        return true;
+    if (project.clientId === userId)
+        return true;
+    if (project.engineerId === userId)
+        return true;
+    return Boolean(project.projectMembers?.some((member) => member.userId === userId && member.status === "accepted"));
+};
+const canCreateTransaction = (type, project, userId, role) => {
+    if (role === "admin")
+        return true;
+    if (role !== "client" || project.clientId !== userId)
+        return false;
+    return type === "deposit" || type === "release";
+};
+const validateMilestone = async (milestoneId, projectId, type) => {
+    if (!milestoneId)
+        return null;
+    const milestone = await db_js_1.default.milestone.findFirst({
+        where: {
+            id: String(milestoneId),
+            projectId,
+        },
+    });
+    if (!milestone) {
+        return {
+            error: {
+                status: 400,
+                body: { message: "milestoneId must belong to the escrow project" },
+            },
+            milestone: null,
+        };
+    }
+    if ((type === "release" || type === "auto_payment") &&
+        milestone.status !== "awaiting_client_payment") {
+        return {
+            error: {
+                status: 400,
+                body: {
+                    message: "Milestone must be awaiting_client_payment before money can be released",
+                    currentStatus: milestone.status,
+                },
+            },
+            milestone,
+        };
+    }
+    return { error: null, milestone };
+};
+const applyCompletedTransaction = (escrowAccount, type, amount) => {
+    const nextBalance = new client_1.Prisma.Decimal(escrowAccount.balance);
+    const nextLockedBalance = new client_1.Prisma.Decimal(escrowAccount.lockedBalance);
+    if (type === "deposit") {
+        return {
+            balance: nextBalance.plus(amount),
+            lockedBalance: nextLockedBalance,
+        };
+    }
+    if (type === "freeze") {
+        if (nextBalance.lessThan(amount)) {
+            return { error: "Insufficient available escrow balance" };
+        }
+        return {
+            balance: nextBalance.minus(amount),
+            lockedBalance: nextLockedBalance.plus(amount),
+        };
+    }
+    if (type === "unfreeze") {
+        if (nextLockedBalance.lessThan(amount)) {
+            return { error: "Insufficient locked escrow balance" };
+        }
+        return {
+            balance: nextBalance.plus(amount),
+            lockedBalance: nextLockedBalance.minus(amount),
+        };
+    }
+    if (type === "release" ||
+        type === "refund" ||
+        type === "auto_payment" ||
+        type === "penalty") {
+        if (nextBalance.lessThan(amount)) {
+            return { error: "Insufficient available escrow balance" };
+        }
+        return {
+            balance: nextBalance.minus(amount),
+            lockedBalance: nextLockedBalance,
+        };
+    }
+    return {
+        balance: nextBalance,
+        lockedBalance: nextLockedBalance,
+    };
+};
+const reverseCompletedTransaction = (escrowAccount, type, amount) => {
+    const nextBalance = new client_1.Prisma.Decimal(escrowAccount.balance);
+    const nextLockedBalance = new client_1.Prisma.Decimal(escrowAccount.lockedBalance);
+    if (type === "deposit") {
+        if (nextBalance.lessThan(amount)) {
+            return { error: "Insufficient available escrow balance to reverse deposit" };
+        }
+        return {
+            balance: nextBalance.minus(amount),
+            lockedBalance: nextLockedBalance,
+        };
+    }
+    if (type === "freeze") {
+        if (nextLockedBalance.lessThan(amount)) {
+            return { error: "Insufficient locked escrow balance to reverse freeze" };
+        }
+        return {
+            balance: nextBalance.plus(amount),
+            lockedBalance: nextLockedBalance.minus(amount),
+        };
+    }
+    if (type === "unfreeze") {
+        if (nextBalance.lessThan(amount)) {
+            return { error: "Insufficient available escrow balance to reverse unfreeze" };
+        }
+        return {
+            balance: nextBalance.minus(amount),
+            lockedBalance: nextLockedBalance.plus(amount),
+        };
+    }
+    if (type === "release" ||
+        type === "refund" ||
+        type === "auto_payment" ||
+        type === "penalty") {
+        return {
+            balance: nextBalance.plus(amount),
+            lockedBalance: nextLockedBalance,
+        };
+    }
+    return {
+        balance: nextBalance,
+        lockedBalance: nextLockedBalance,
+    };
+};
+const createTransaction = async (req, res) => {
+    try {
+        const { escrowAccountId, projectId, milestoneId, type, method, amount, status, reference, metadata, } = req.body;
+        if (!escrowAccountId && !projectId) {
+            return res.status(400).json({
+                message: "escrowAccountId or projectId is required",
+            });
+        }
+        if (!type || !amount) {
+            return res.status(400).json({
+                message: "type and amount are required",
+            });
+        }
+        if (!isTransactionType(type)) {
+            return res.status(400).json({ message: "Invalid transaction type" });
+        }
+        if (status !== undefined && !isTransactionStatus(status)) {
+            return res.status(400).json({ message: "Invalid transaction status" });
+        }
+        if (method !== undefined && method !== null && !isPaymentMethod(method)) {
+            return res.status(400).json({ message: "Invalid payment method" });
+        }
+        const transactionAmount = new client_1.Prisma.Decimal(amount);
+        if (transactionAmount.lessThanOrEqualTo(0)) {
+            return res.status(400).json({ message: "amount must be greater than 0" });
+        }
+        const escrowAccount = await db_js_1.default.escrowAccount.findFirst({
+            where: {
+                ...(escrowAccountId
+                    ? { id: String(escrowAccountId) }
+                    : { projectId: String(projectId) }),
+            },
+            include: {
+                project: true,
+            },
+        });
+        if (!escrowAccount) {
+            return res.status(404).json({ message: "Escrow account not found" });
+        }
+        if (!canCreateTransaction(type, escrowAccount.project, req.user.id, req.user.role)) {
+            return res.status(403).json({
+                message: "Only the project client can create deposits or releases, and admin can create all transaction types",
+            });
+        }
+        const milestoneResult = await validateMilestone(milestoneId, escrowAccount.projectId, type);
+        if (milestoneResult?.error) {
+            return res
+                .status(milestoneResult.error.status)
+                .json(milestoneResult.error.body);
+        }
+        const nextStatus = status || "pending";
+        const transaction = await db_js_1.default.$transaction(async (tx) => {
+            let nextEscrowBalance;
+            if (nextStatus === "completed") {
+                const applied = applyCompletedTransaction(escrowAccount, type, transactionAmount);
+                if ("error" in applied) {
+                    throw new Error(applied.error);
+                }
+                nextEscrowBalance = applied;
+                await tx.escrowAccount.update({
+                    where: { id: escrowAccount.id },
+                    data: {
+                        balance: applied.balance,
+                        lockedBalance: applied.lockedBalance,
+                    },
+                });
+                if (milestoneId &&
+                    (type === "release" || type === "auto_payment")) {
+                    await tx.milestone.update({
+                        where: { id: String(milestoneId) },
+                        data: {
+                            status: "paid",
+                            paidAt: new Date(),
+                        },
+                    });
+                }
+            }
+            const createdTransaction = await tx.transaction.create({
+                data: {
+                    escrowAccountId: escrowAccount.id,
+                    milestoneId: milestoneId ? String(milestoneId) : undefined,
+                    actorId: req.user.id,
+                    type,
+                    method: method || undefined,
+                    amount: transactionAmount,
+                    status: nextStatus,
+                    reference,
+                    metadata: parseJsonField(metadata),
+                    completedAt: nextStatus === "completed" ? new Date() : undefined,
+                },
+                include: {
+                    escrowAccount: true,
+                    milestone: true,
+                    actor: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            image: true,
+                            role: true,
+                        },
+                    },
+                },
+            });
+            return {
+                ...createdTransaction,
+                escrowAccount: nextEscrowBalance
+                    ? {
+                        ...createdTransaction.escrowAccount,
+                        balance: nextEscrowBalance.balance,
+                        lockedBalance: nextEscrowBalance.lockedBalance,
+                    }
+                    : createdTransaction.escrowAccount,
+            };
+        });
+        await (0, notifications_js_1.notifyProjectParticipants)({
+            projectId: escrowAccount.projectId,
+            excludeUserId: req.user.id,
+            title: transaction.status === "completed"
+                ? "Payment completed"
+                : "Payment activity created",
+            body: `${transaction.type} transaction of ${transaction.amount.toString()} ${escrowAccount.project.currency} is ${transaction.status}`,
+            data: {
+                type: "transaction_created",
+                transactionId: transaction.id,
+                transactionType: transaction.type,
+                status: transaction.status,
+                milestoneId: transaction.milestoneId,
+            },
+        });
+        return res.status(201).json({
+            message: "Transaction created successfully",
+            transaction,
+        });
+    }
+    catch (error) {
+        console.error("Create transaction error:", error);
+        if (error instanceof Error && error.message.includes("balance")) {
+            return res.status(400).json({ message: error.message });
+        }
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.createTransaction = createTransaction;
+const getTransactions = async (req, res) => {
+    try {
+        const escrowAccountId = typeof req.query.escrowAccountId === "string"
+            ? req.query.escrowAccountId
+            : undefined;
+        const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
+        const milestoneId = typeof req.query.milestoneId === "string"
+            ? req.query.milestoneId
+            : undefined;
+        const status = typeof req.query.status === "string" ? req.query.status : undefined;
+        const type = typeof req.query.type === "string" ? req.query.type : undefined;
+        if (status !== undefined && !isTransactionStatus(status)) {
+            return res.status(400).json({ message: "Invalid transaction status" });
+        }
+        if (type !== undefined && !isTransactionType(type)) {
+            return res.status(400).json({ message: "Invalid transaction type" });
+        }
+        const transactions = await db_js_1.default.transaction.findMany({
+            where: {
+                ...(escrowAccountId ? { escrowAccountId } : {}),
+                ...(milestoneId ? { milestoneId } : {}),
+                ...(status ? { status } : {}),
+                ...(type ? { type } : {}),
+                escrowAccount: {
+                    ...(projectId ? { projectId } : {}),
+                    ...(req.user.role === "admin"
+                        ? {}
+                        : {
+                            project: {
+                                OR: [
+                                    { clientId: req.user.id },
+                                    { engineerId: req.user.id },
+                                    {
+                                        projectMembers: {
+                                            some: {
+                                                userId: req.user.id,
+                                                status: "accepted",
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                        }),
+                },
+            },
+            include: {
+                escrowAccount: {
+                    include: {
+                        project: true,
+                    },
+                },
+                milestone: true,
+                actor: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        image: true,
+                        role: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+        return res.json(transactions);
+    }
+    catch (error) {
+        console.error("Get transactions error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.getTransactions = getTransactions;
+const getTransactionById = async (req, res) => {
+    try {
+        const id = getParamId(req.params.id);
+        if (!id) {
+            return res.status(400).json({ message: "Transaction ID is required" });
+        }
+        const transaction = await db_js_1.default.transaction.findUnique({
+            where: { id },
+            include: {
+                escrowAccount: {
+                    include: {
+                        project: {
+                            include: {
+                                projectMembers: true,
+                            },
+                        },
+                    },
+                },
+                milestone: true,
+                actor: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        image: true,
+                        role: true,
+                    },
+                },
+            },
+        });
+        if (!transaction) {
+            return res.status(404).json({ message: "Transaction not found" });
+        }
+        if (!canReadProjectTransactions(transaction.escrowAccount.project, req.user.id, req.user.role)) {
+            return res.status(403).json({
+                message: "You do not have access to this transaction",
+            });
+        }
+        return res.json(transaction);
+    }
+    catch (error) {
+        console.error("Get transaction by ID error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.getTransactionById = getTransactionById;
+const updateTransaction = async (req, res) => {
+    try {
+        const id = getParamId(req.params.id);
+        const { method, status, reference, metadata } = req.body;
+        if (!id) {
+            return res.status(400).json({ message: "Transaction ID is required" });
+        }
+        if (status !== undefined && !isTransactionStatus(status)) {
+            return res.status(400).json({ message: "Invalid transaction status" });
+        }
+        if (method !== undefined && method !== null && !isPaymentMethod(method)) {
+            return res.status(400).json({ message: "Invalid payment method" });
+        }
+        const existingTransaction = await db_js_1.default.transaction.findUnique({
+            where: { id },
+            include: {
+                escrowAccount: {
+                    include: {
+                        project: true,
+                    },
+                },
+                milestone: true,
+            },
+        });
+        if (!existingTransaction) {
+            return res.status(404).json({ message: "Transaction not found" });
+        }
+        const nextStatus = status || existingTransaction.status;
+        if (nextStatus === "completed" &&
+            existingTransaction.status !== "completed" &&
+            existingTransaction.milestoneId &&
+            (existingTransaction.type === "release" ||
+                existingTransaction.type === "auto_payment") &&
+            existingTransaction.milestone?.status !== "awaiting_client_payment") {
+            return res.status(400).json({
+                message: "Milestone must be awaiting_client_payment before money can be released",
+                currentStatus: existingTransaction.milestone?.status,
+            });
+        }
+        const transaction = await db_js_1.default.$transaction(async (tx) => {
+            if (existingTransaction.status !== "completed" &&
+                nextStatus === "completed") {
+                const applied = applyCompletedTransaction(existingTransaction.escrowAccount, existingTransaction.type, existingTransaction.amount);
+                if ("error" in applied) {
+                    throw new Error(applied.error);
+                }
+                await tx.escrowAccount.update({
+                    where: { id: existingTransaction.escrowAccountId },
+                    data: {
+                        balance: applied.balance,
+                        lockedBalance: applied.lockedBalance,
+                    },
+                });
+                if (existingTransaction.milestoneId &&
+                    (existingTransaction.type === "release" ||
+                        existingTransaction.type === "auto_payment")) {
+                    await tx.milestone.update({
+                        where: { id: existingTransaction.milestoneId },
+                        data: {
+                            status: "paid",
+                            paidAt: new Date(),
+                        },
+                    });
+                }
+            }
+            if (existingTransaction.status === "completed" &&
+                nextStatus !== "completed") {
+                const reversed = reverseCompletedTransaction(existingTransaction.escrowAccount, existingTransaction.type, existingTransaction.amount);
+                if ("error" in reversed) {
+                    throw new Error(reversed.error);
+                }
+                await tx.escrowAccount.update({
+                    where: { id: existingTransaction.escrowAccountId },
+                    data: {
+                        balance: reversed.balance,
+                        lockedBalance: reversed.lockedBalance,
+                    },
+                });
+            }
+            return tx.transaction.update({
+                where: { id },
+                data: {
+                    method: method === null ? null : method,
+                    status: nextStatus,
+                    reference,
+                    metadata: metadata !== undefined ? parseJsonField(metadata) : undefined,
+                    completedAt: nextStatus === "completed"
+                        ? existingTransaction.completedAt || new Date()
+                        : null,
+                },
+                include: {
+                    escrowAccount: true,
+                    milestone: true,
+                    actor: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            image: true,
+                            role: true,
+                        },
+                    },
+                },
+            });
+        });
+        if (status !== undefined) {
+            await (0, notifications_js_1.notifyProjectParticipants)({
+                projectId: existingTransaction.escrowAccount.projectId,
+                excludeUserId: req.user.id,
+                title: transaction.status === "completed"
+                    ? "Payment completed"
+                    : "Payment status updated",
+                body: `${transaction.type} transaction of ${transaction.amount.toString()} ${existingTransaction.escrowAccount.project.currency} is ${transaction.status}`,
+                data: {
+                    type: "transaction_status_updated",
+                    transactionId: transaction.id,
+                    transactionType: transaction.type,
+                    status: transaction.status,
+                    milestoneId: transaction.milestoneId,
+                },
+            });
+        }
+        return res.json({
+            message: "Transaction updated successfully",
+            transaction,
+        });
+    }
+    catch (error) {
+        console.error("Update transaction error:", error);
+        if (error instanceof Error && error.message.includes("balance")) {
+            return res.status(400).json({ message: error.message });
+        }
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.updateTransaction = updateTransaction;
+const deleteTransaction = async (req, res) => {
+    try {
+        const id = getParamId(req.params.id);
+        if (!id) {
+            return res.status(400).json({ message: "Transaction ID is required" });
+        }
+        const transaction = await db_js_1.default.transaction.findUnique({
+            where: { id },
+        });
+        if (!transaction) {
+            return res.status(404).json({ message: "Transaction not found" });
+        }
+        if (transaction.status === "completed") {
+            return res.status(400).json({
+                message: "Completed transactions cannot be deleted. Mark the transaction as reversed instead.",
+            });
+        }
+        await db_js_1.default.transaction.delete({
+            where: { id },
+        });
+        return res.json({ message: "Transaction deleted successfully" });
+    }
+    catch (error) {
+        console.error("Delete transaction error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.deleteTransaction = deleteTransaction;

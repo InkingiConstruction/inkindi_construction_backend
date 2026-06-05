@@ -4,7 +4,7 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { WalletService } from "./api/v1/escrow/escrow.service";
-import { releaseMilestoneFunds } from "./api/v1/milestones/milestone.service";
+import { MilestoneService } from "./api/v1/milestones/milestone.service";
 
 const prisma = new PrismaClient();
 
@@ -93,7 +93,7 @@ async function main() {
         description: "Top up for payout test",
       });
     }
-    const release = await releaseMilestoneFunds(milestone.id, client.id);
+    const release = await MilestoneService.releaseMilestoneFunds(milestone.id, client.id, "client");
     console.log(`   ✓ Released ${release.payoutAmount} to engineer ${release.engineerId}\n`);
   }
 

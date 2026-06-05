@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const role_middleware_1 = require("../middleware/role.middleware");
+const site_agent_controller_1 = require("./site-agent.controller");
+const router = (0, express_1.Router)();
+router.get("/daily-reports", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("site_agent", "client", "engineer", "supervisor", "admin"), site_agent_controller_1.listDailyReports);
+router.post("/daily-reports", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("site_agent", "engineer", "admin"), site_agent_controller_1.createDailyReport);
+router.get("/inventory-logs", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("site_agent", "client", "engineer", "supervisor", "admin"), site_agent_controller_1.listInventoryLogs);
+router.post("/inventory-logs", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("site_agent", "engineer", "admin"), site_agent_controller_1.createInventoryLog);
+router.get("/delivery-verifications", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("site_agent", "client", "engineer", "supervisor", "supplier", "admin"), site_agent_controller_1.listDeliveryVerifications);
+router.post("/delivery-verifications", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("site_agent", "engineer", "admin"), site_agent_controller_1.createDeliveryVerification);
+exports.default = router;
