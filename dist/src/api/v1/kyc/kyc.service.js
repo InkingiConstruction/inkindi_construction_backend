@@ -30,12 +30,14 @@ const REQUIRED_DOCUMENTS = {
     supervisor: ["national_id", "practice_license"],
     engineer: ["national_id", "ier_certificate"],
     supplier: ["rdb_certificate", "tin_certificate"],
+    site_agent: ["national_id", "site_operations_reference"],
 };
 const OPTIONAL_DOCUMENTS = {
     client: ["passport"],
     supervisor: ["passport", "rdb_certificate", "accreditation_cert", "certification", "indemnity_insurance"],
     engineer: ["passport", "rdb_certificate", "ier_license", "ier_corporate_license", "business_registration", "indemnity_insurance"],
     supplier: ["business_registration", "tax_compliance", "national_id"],
+    site_agent: ["passport", "certification"],
 };
 const getRoleSpecificValue = (roleSpecific, key) => {
     if (!roleSpecific || typeof roleSpecific !== "object" || Array.isArray(roleSpecific)) {
@@ -80,8 +82,12 @@ class KycService {
             throw new Error("EMAIL_UNVERIFIED");
         if (!phoneVerified)
             throw new Error("PHONE_UNVERIFIED");
+        const user = await db_js_1.default.user.findUnique({
+            where: { id: userId },
+            select: { roleSpecific: true },
+        });
         const allowed = [
-            ...(REQUIRED_DOCUMENTS[userRole] ?? []),
+            ...getRequiredDocuments(userRole, user?.roleSpecific),
             ...(OPTIONAL_DOCUMENTS[userRole] ?? []),
         ];
         if (!allowed.includes(type)) {

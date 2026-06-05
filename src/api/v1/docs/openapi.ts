@@ -35,7 +35,7 @@ type RouteDoc = {
  * 1. CONSTANTS
  * ------------------------------------------------------------------------ */
 
-const allRoles = ["client", "engineer", "supervisor", "supplier", "admin"];
+const allRoles = ["client", "engineer", "supervisor", "supplier", "site_agent", "admin"];
 
 /* --------------------------------------------------------------------------
  * 2. REUSABLE COMPONENT SCHEMAS
@@ -59,7 +59,7 @@ const schemas: Record<string, OpenAPIV3.SchemaObject> = {
       name: { type: "string", example: "Robert Mugisha" },
       email: { type: "string", format: "email", example: "robert@example.com" },
       emailVerified: { type: "boolean" },
-      role: { type: "string", enum: ["client", "engineer", "supervisor", "supplier", "admin"] },
+      role: { type: "string", enum: ["client", "engineer", "supervisor", "supplier", "site_agent", "admin"] },
       username: { type: "string", nullable: true },
       displayUsername: { type: "string", nullable: true },
       phoneNumber: { type: "string", nullable: true, example: "+250788123456" },
@@ -125,6 +125,7 @@ const schemas: Record<string, OpenAPIV3.SchemaObject> = {
           "certification",
           "practice_license",
           "accreditation_cert",
+          "site_operations_reference",
         ],
       },
       cloudinaryUrl: { type: "string", format: "uri" },

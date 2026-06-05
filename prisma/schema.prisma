@@ -29,6 +29,7 @@ enum KycDocumentType {
   certification
   practice_license
   accreditation_cert
+  site_operations_reference
 }
 
 enum KycDocumentStatus {
