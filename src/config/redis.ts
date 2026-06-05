@@ -1,15 +1,36 @@
-import IORedis from "ioredis";
+/**
+ * ============================================================================
+ * 📄 FILE: redis.ts
+ * PURPOSE: Single Redis connection reused by the app, BullMQ, and any other
+ *          client that needs Redis. Exposes the raw client + a BullMQ-
+ *          compatible connection option.
+ * ============================================================================
+ */
 
-const redisConnection = new IORedis({
-  host: process.env.REDIS_HOST || "127.0.0.1",
-  port: Number(process.env.REDIS_PORT) || 6379,
-  password: process.env.REDIS_PASSWORD || undefined,
-  maxRetriesPerRequest: null,
+import { Redis } from "ioredis";
+import { logger } from "../common/middleware/logger.middleware";
+
+const redisUrl = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+
+/**
+ * Raw ioredis client. Use this for direct Redis commands (e.g. caching).
+ */
+export const redisClient = new Redis(redisUrl, {
+  maxRetriesPerRequest: null, // BullMQ requirement
   enableReadyCheck: false,
 });
 
-redisConnection.on("error", (err) => {
-  console.error("Redis connection error:", err);
+redisClient.on("connect", () => {
+  logger.info(" Connected to Redis successfully");
 });
 
-export default redisConnection;
+redisClient.on("error", (error: Error) => {
+  logger.error(` Redis connection error: ${error.message}`);
+});
+
+/**
+ * Same client, exposed under the name BullMQ files import by default.
+ */
+export const redisConnection = redisClient;
+
+export default redisClient;

@@ -16,10 +16,9 @@ const toDecimal = (v: DecimalLike) =>
   v instanceof Prisma.Decimal ? v : new Prisma.Decimal(v);
 
 export class WalletService {
-  /**
-   * Ensures a wallet exists for the user. Called on user registration.
-   * Idempotent — safe to call multiple times.
-   */
+  // ─────────────────────────────────────────────────────────────────────
+  // ensureWallet
+  // ─────────────────────────────────────────────────────────────────────
   static async ensureWallet(userId: string, currency = "RWF"): Promise<Wallet> {
     const existing = await prisma.wallet.findUnique({ where: { userId } });
     if (existing) return existing;
@@ -28,9 +27,7 @@ export class WalletService {
       data: { userId, currency, balance: 0, status: "active" },
     });
 
-    // Fire async event (does not block creation)
     await walletQueue.add("wallet.created", {
-      type: "wallet.created",
       userId,
       walletId: wallet.id,
     });
@@ -38,35 +35,27 @@ export class WalletService {
     return wallet;
   }
 
-  /**
-   * Get wallet with computed stats
-   */
+  // ─────────────────────────────────────────────────────────────────────
+  // getWallet
+  // ─────────────────────────────────────────────────────────────────────
   static async getWallet(userId: string) {
     const wallet = await prisma.wallet.findUnique({
       where: { userId },
       include: {
         _count: { select: { transactions: true, fundingRequests: true } },
-        transactions: {
-          orderBy: { createdAt: "desc" },
-          take: 20,
-        },
+        transactions: { orderBy: { createdAt: "desc" }, take: 20 },
       },
     });
 
     if (!wallet) return null;
 
-    // Aggregate totals
     const aggregates = await prisma.walletTransaction.aggregate({
       where: { walletId: wallet.id, status: "completed" },
       _sum: { amount: true },
     });
 
     const totalInVaults = await prisma.transaction.aggregate({
-      where: {
-        actorId: userId,
-        type: "deposit",
-        status: "completed",
-      },
+      where: { actorId: userId, type: "deposit", status: "completed" },
       _sum: { amount: true },
     });
 
@@ -78,23 +67,20 @@ export class WalletService {
     };
   }
 
-  /**
-   * Create a funding request (simulating Stripe / Momo intent).
-   * The actual balance is credited only after `confirmFunding()` succeeds.
-   */
+  // ─────────────────────────────────────────────────────────────────────
+  // createFundingRequest  ✅ FIXED HERE
+  // ─────────────────────────────────────────────────────────────────────
   static async createFundingRequest(params: {
     userId: string;
     amount: DecimalLike;
     method: "stripe" | "mtn_momo" | "airtel_money" | "bank_transfer";
     phoneNumber?: string;
-    metadata?: Record<string, unknown>;
+    metadata?: Prisma.JsonObject; 
   }) {
     const wallet = await this.ensureWallet(params.userId);
     const amount = toDecimal(params.amount);
 
-    if (amount.lte(0)) {
-      throw new Error("Funding amount must be positive");
-    }
+    if (amount.lte(0)) throw new Error("Funding amount must be positive");
 
     return prisma.fundingRequest.create({
       data: {
@@ -104,18 +90,17 @@ export class WalletService {
         method: params.method,
         status: "pending",
         phoneNumber: params.phoneNumber,
-        metadata: params.metadata ?? {},
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 min expiry
+        metadata: (params.metadata ?? {}) as Prisma.JsonObject, 
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
       },
     });
   }
 
-  /**
-   * Confirm and complete a funding request — credits the wallet.
-   * ATOMIC: balance + transaction created in a single Prisma transaction.
-   */
+  // ─────────────────────────────────────────────────────────────────────
+  // confirmFunding
+  // ─────────────────────────────────────────────────────────────────────
   static async confirmFunding(fundingRequestId: string, providerRef: string) {
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const req = await tx.fundingRequest.findUnique({
         where: { id: fundingRequestId },
         include: { wallet: true },
@@ -133,17 +118,11 @@ export class WalletService {
         throw new Error("Funding request expired");
       }
 
-      // Mark funding as completed
       await tx.fundingRequest.update({
         where: { id: req.id },
-        data: {
-          status: "completed",
-          providerRef,
-          completedAt: new Date(),
-        },
+        data: { status: "completed", providerRef, completedAt: new Date() },
       });
 
-      // Update wallet balance
       const balanceBefore = req.wallet.balance;
       const balanceAfter = balanceBefore.plus(req.amount);
 
@@ -152,7 +131,6 @@ export class WalletService {
         data: { balance: { increment: req.amount } },
       });
 
-      // Create wallet transaction record
       const walletTx = await tx.walletTransaction.create({
         data: {
           walletId: req.walletId,
@@ -169,33 +147,35 @@ export class WalletService {
         },
       });
 
-      return { wallet: updatedWallet, transaction: walletTx, fundingRequest: req };
-    }).then(async (result) => {
-      // Fire async event AFTER transaction commits
-      await walletQueue.add("wallet.funded", {
-        type: "wallet.funded",
-        userId: result.wallet.userId,
-        walletId: result.wallet.id,
-        amount: Number(req.amount),
-        fundingRequestId,
-      });
-      return result;
+      return {
+        wallet: updatedWallet,
+        transaction: walletTx,
+        fundingRequest: req,
+        amount: req.amount,
+      };
     });
+
+    await walletQueue.add("wallet.funded", {
+      userId: result.wallet.userId,
+      walletId: result.wallet.id,
+      amount: Number(result.amount),
+      fundingRequestId,
+    });
+
+    return result;
   }
 
-  /**
-   * Simulate provider confirmation (for testing without real Stripe/Momo).
-   * In production, this would be replaced by a webhook handler.
-   */
+  // ─────────────────────────────────────────────────────────────────────
+  // simulateFundingSuccess
+  // ─────────────────────────────────────────────────────────────────────
   static async simulateFundingSuccess(fundingRequestId: string) {
     const providerRef = `SIM-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     return this.confirmFunding(fundingRequestId, providerRef);
   }
 
-  /**
-   * Transfer money from user wallet to a project vault.
-   * ATOMIC with row-level safety.
-   */
+  // ─────────────────────────────────────────────────────────────────────
+  // transferToVault
+  // ─────────────────────────────────────────────────────────────────────
   static async transferToVault(params: {
     userId: string;
     escrowAccountId: string;
@@ -206,7 +186,7 @@ export class WalletService {
 
     if (amount.lte(0)) throw new Error("Amount must be positive");
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const wallet = await tx.wallet.findUnique({
         where: { userId: params.userId },
       });
@@ -225,10 +205,11 @@ export class WalletService {
         throw new Error("Only the project owner can fund this vault");
       }
       if (wallet.currency !== escrow.currency) {
-        throw new Error(`Currency mismatch: wallet=${wallet.currency}, vault=${escrow.currency}`);
+        throw new Error(
+          `Currency mismatch: wallet=${wallet.currency}, vault=${escrow.currency}`,
+        );
       }
 
-      // Debit wallet
       const walletBefore = wallet.balance;
       const walletAfter = walletBefore.minus(amount);
       await tx.wallet.update({
@@ -247,14 +228,12 @@ export class WalletService {
           status: "completed",
           escrowAccountId: escrow.id,
           completedAt: new Date(),
-          description: params.description ?? `Funded project vault: ${escrow.project.name}`,
+          description:
+            params.description ?? `Funded project vault: ${escrow.project.name}`,
           reference: `WT-VAULT-${Date.now()}`,
         },
       });
 
-      // Credit vault
-      const vaultBefore = escrow.balance;
-      const vaultAfter = vaultBefore.plus(amount);
       await tx.escrowAccount.update({
         where: { id: escrow.id },
         data: { balance: { increment: amount } },
@@ -279,21 +258,21 @@ export class WalletService {
       });
 
       return { walletId: wallet.id, escrowAccountId: escrow.id, amount };
-    }).then(async (result) => {
-      await walletQueue.add("wallet.vault_transfer", {
-        type: "wallet.vault_transfer",
-        userId: params.userId,
-        walletId: result.walletId,
-        escrowAccountId: result.escrowAccountId,
-        amount: Number(result.amount),
-      });
-      return result;
     });
+
+    await walletQueue.add("wallet.vault_transfer", {
+      userId: params.userId,
+      walletId: result.walletId,
+      escrowAccountId: result.escrowAccountId,
+      amount: Number(result.amount),
+    });
+
+    return result;
   }
 
-  /**
-   * Get total money the user has put into a specific project vault
-   */
+  // ─────────────────────────────────────────────────────────────────────
+  // getProjectVaultBalance
+  // ─────────────────────────────────────────────────────────────────────
   static async getProjectVaultBalance(userId: string, escrowAccountId: string) {
     const escrow = await prisma.escrowAccount.findUnique({
       where: { id: escrowAccountId },
@@ -324,16 +303,12 @@ export class WalletService {
     };
   }
 
-  /**
-   * List all vaults the user has funded, with running balance
-   */
+  // ─────────────────────────────────────────────────────────────────────
+  // listUserProjectVaults
+  // ─────────────────────────────────────────────────────────────────────
   static async listUserProjectVaults(userId: string) {
     const escrows = await prisma.escrowAccount.findMany({
-      where: {
-        project: {
-          clientId: userId,
-        },
-      },
+      where: { project: { clientId: userId } },
       include: {
         project: { select: { id: true, name: true, status: true } },
         transactions: {
@@ -365,14 +340,13 @@ export class WalletService {
     });
   }
 
-  /**
-   * Get paginated wallet transaction history
-   */
-  static async getWalletHistory(userId: string, opts: {
-    page?: number;
-    limit?: number;
-    type?: WalletTransactionType;
-  } = {}) {
+  // ─────────────────────────────────────────────────────────────────────
+  // getWalletHistory
+  // ─────────────────────────────────────────────────────────────────────
+  static async getWalletHistory(
+    userId: string,
+    opts: { page?: number; limit?: number; type?: WalletTransactionType } = {},
+  ) {
     const { page = 1, limit = 20, type } = opts;
     const wallet = await prisma.wallet.findUnique({ where: { userId } });
     if (!wallet) return { items: [], total: 0, page, limit };
@@ -388,9 +362,7 @@ export class WalletService {
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
-        include: {
-          wallet: { select: { currency: true } },
-        },
+        include: { wallet: { select: { currency: true } } },
       }),
       prisma.walletTransaction.count({ where }),
     ]);
@@ -398,23 +370,31 @@ export class WalletService {
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  /**
-   * Admin: freeze/unfreeze a wallet
-   */
-  static async setWalletStatus(userId: string, status: "active" | "frozen", reason?: string) {
+  // ─────────────────────────────────────────────────────────────────────
+  // setWalletStatus
+  // ─────────────────────────────────────────────────────────────────────
+  static async setWalletStatus(
+    userId: string,
+    status: "active" | "frozen",
+    reason?: string,
+  ) {
     const wallet = await prisma.wallet.update({
       where: { userId },
       data: {
         status,
-        ...(status === "frozen" ? { frozenReason: reason } : { frozenReason: null }),
+        ...(status === "frozen"
+          ? { frozenReason: reason }
+          : { frozenReason: null }),
       },
     });
 
-    await walletQueue.add("wallet.status", {
-      type: status === "frozen" ? "wallet.frozen" : "wallet.unfrozen",
-      walletId: wallet.id,
-      ...(status === "frozen" ? { reason: reason ?? "frozen by admin" } : {}),
-    });
+    await walletQueue.add(
+      status === "frozen" ? "wallet.frozen" : "wallet.unfrozen",
+      {
+        walletId: wallet.id,
+        ...(status === "frozen" ? { reason: reason ?? "frozen by admin" } : {}),
+      },
+    );
 
     return wallet;
   }

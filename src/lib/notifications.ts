@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import prisma from "./prisma.js";
 import { isExpoPushToken, sendExpoPushNotification } from "./expo.js";
-import { sendEmail } from "../integrations/resend.js";
+import { sendEmail } from "../config/resend.js";
 
 type NotifyUserInput = {
   userId: string;
