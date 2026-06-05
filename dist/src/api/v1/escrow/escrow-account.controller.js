@@ -304,7 +304,12 @@ const initiateFunding = async (req, res) => {
     }
     catch (error) {
         console.error("Initiate funding error:", error);
-        return res.status(500).json({ message: "Internal Server Error" });
+        if (error?.type?.startsWith?.("Stripe")) {
+            return res.status(error.statusCode || 400).json({
+                message: error.message || "Stripe payment initialization failed",
+            });
+        }
+        return res.status(500).json({ message: error?.message || "Internal Server Error" });
     }
 };
 exports.initiateFunding = initiateFunding;
