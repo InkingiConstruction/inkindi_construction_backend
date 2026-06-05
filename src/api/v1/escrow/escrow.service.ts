@@ -1,24 +1,109 @@
 /**
- * ============================================================================
- * 📄 FILE: wallet.service.ts
- * PURPOSE: Manages user wallets — funding, balance, transfers, payouts
- * PRINCIPLE: SOLID (business logic), KISS, atomic transactions
+ * 🏗️  INKINGIPRO — WALLET SERVICE
+ * ----------------------------------------------------------------------------
+ * The Wallet is the **personal cash buffer** that lives between the Client's
+ * payment provider (Stripe, MTN Momo, Airtel Money, Bank) and the **Project
+ * Escrow Vaults** (per-project held funds).
+ *
+ * Think of it as a 3-layer money flow:
+ *
+ *    ┌──────────────────────────────────────────────────────────────────┐
+ *    │  LAYER 1 — PAYMENT PROVIDERS                                    │
+ *    │  Stripe • MTN Momo • Airtel Money • Bank Transfer               │
+ *    │  (Money lives OUTSIDE the system until confirmed)                │
+ *    └────────────────────────┬─────────────────────────────────────────┘
+ *                             │  confirmFunding()  (atomic, on webhook)
+ *                             ▼
+ *    ┌──────────────────────────────────────────────────────────────────┐
+ *    │  LAYER 2 — USER WALLET  ◀── this file                          │
+ *    │  One wallet per user, holds the spendable balance.              │
+ *    │  Can be ACTIVE (usable) or FROZEN (admin-locked).               │
+ *    └────────────────────────┬─────────────────────────────────────────┘
+ *                             │  transferToVault()  (user-initiated)
+ *                             ▼
+ *    ┌──────────────────────────────────────────────────────────────────┐
+ *    │  LAYER 3 — ESCROW ACCOUNTS (Project Vaults)                     │
+ *    │  One per project. Funds here back milestones and payouts.       │
+ *    │  Managed by escrow-account.service.ts                            │
+ *    └──────────────────────────────────────────────────────────────────┘
+ *
+ * ----------------------------------------------------------------------------
+ * WHY THIS 3-LAYER DESIGN?
+ * ----------------------------------------------------------------------------
+ *  • A Wallet is REUSABLE across all of a client's projects.
+ *  • Funding a Wallet ONCE then distributing to N vaults is cheaper
+ *    (fewer mobile-money fees) and gives the client a single dashboard.
+ *  • Escrow vaults stay CLEAN — they only ever receive project-bound money.
+ *  • Freezing a Wallet (Layer 2) instantly blocks all vault funding without
+ *    touching individual project accounts.
+ *
+ * ----------------------------------------------------------------------------
+ * KEY DESIGN PRINCIPLES
+ * ----------------------------------------------------------------------------
+ *  • Atomicity: balance mutations always happen inside `prisma.$transaction`.
+ *  • Immutability: every balance change writes a `WalletTransaction` row.
+ *  • Decimal safety: all money is handled via `Prisma.Decimal` — never floats.
+ *  • Event-driven: side-effects (emails, analytics) are pushed to BullMQ.
+ *  • Idempotency: `FundingRequest` is the single source of truth for
+ *    "did the provider actually pay us?" — replays are safe.
  * ============================================================================
  */
 
-import { Prisma, Wallet, WalletTransaction, FundingRequest, TransactionStatus, WalletTransactionType } from "@prisma/client";
+import {
+  Prisma,
+  Wallet,
+  WalletTransaction,
+  FundingRequest,
+  TransactionStatus,
+  WalletTransactionType,
+} from "@prisma/client";
 import prisma from "../../../config/db.js";
 import { walletQueue } from "../../../queues/wallet.queue.js";
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  INTERNAL HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Union of all input shapes we accept as a money value.
+ * We never trust raw `number` from the wire — we always normalize to
+ * `Prisma.Decimal` to avoid float drift on RWF amounts.
+ */
 type DecimalLike = Prisma.Decimal | number | string;
 
-const toDecimal = (v: DecimalLike) =>
+/**
+ * Normalize any money-shaped input into a `Prisma.Decimal`.
+ * - Already-Decimal values are passed through (zero allocation).
+ * - Anything else is coerced via the constructor.
+ */
+const toDecimal = (v: DecimalLike): Prisma.Decimal =>
   v instanceof Prisma.Decimal ? v : new Prisma.Decimal(v);
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  WALLET SERVICE
+// ─────────────────────────────────────────────────────────────────────────────
+
 export class WalletService {
-  // ─────────────────────────────────────────────────────────────────────
-  // ensureWallet
-  // ─────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────
+  //  ensureWallet
+  // ───────────────────────────────────────────────────────────────────────
+  /**
+   * Returns the user's wallet, creating one on first access.
+   *
+   * Flow:
+   *  1. Lookup by `userId` (unique).
+   *  2. If found → return as-is (no event, no mutation).
+   *  3. If not found → create with `balance: 0` and `status: "active"`.
+   *  4. Enqueue `wallet.created` event for downstream (welcome email,
+   *     analytics, default-currency adjustment, etc.).
+   *
+   * Safe to call repeatedly — the unique index on `userId` makes the
+   * create path a no-op if a race-condition winner already inserted.
+   *
+   * @param userId    The owning user.
+   * @param currency  ISO 4217 code; defaults to "RWF" (Rwandan Franc).
+   * @returns The persisted `Wallet` row.
+   */
   static async ensureWallet(userId: string, currency = "RWF"): Promise<Wallet> {
     const existing = await prisma.wallet.findUnique({ where: { userId } });
     if (existing) return existing;
@@ -35,9 +120,25 @@ export class WalletService {
     return wallet;
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // getWallet
-  // ─────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────
+  //  getWallet
+  // ───────────────────────────────────────────────────────────────────────
+  /**
+   * Returns a rich snapshot of the user's wallet for the dashboard.
+   *
+   * Shape returned:
+   *  - All scalar wallet fields (id, currency, status, balance, ...).
+   *  - `availableBalance`  → alias for `balance` (clearer in the UI).
+   *  - `totalInProjectVaults` → sum of all `deposit` transactions
+   *                              the user has made into escrow vaults.
+   *  - `netFlow`           → sum of all completed wallet transactions
+   *                          (inflows minus outflows expressed as a single
+   *                          signed value).
+   *  - `_count` of transactions and funding requests.
+   *  - The 20 most recent `WalletTransaction` rows.
+   *
+   * @returns The composite wallet view, or `null` if no wallet exists yet.
+   */
   static async getWallet(userId: string) {
     const wallet = await prisma.wallet.findUnique({
       where: { userId },
@@ -67,15 +168,33 @@ export class WalletService {
     };
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // createFundingRequest  ✅ FIXED HERE
-  // ─────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────
+  //  createFundingRequest
+  // ───────────────────────────────────────────────────────────────────────
+  /**
+   * Creates a **PENDING** funding request. Money has NOT moved yet.
+   *
+   * Lifecycle:
+   *  1. Client picks a provider (Stripe / MTN Momo / Airtel / Bank).
+   *  2. We persist a `FundingRequest` row with `status: "pending"` and a
+   *     30-minute `expiresAt` window.
+   *  3. The provider's SDK is then invoked elsewhere (controller / service)
+   *     to collect the money from the client.
+   *  4. The provider eventually calls back → `confirmFunding()` runs.
+   *
+   * The 30-minute expiry is a safety net: if the provider never responds
+   * (user closed the app, USSD timeout, etc.) the request auto-fails and
+   * the client is forced to retry.
+   *
+   * @throws Error when `amount` is zero or negative.
+   * @returns The persisted `FundingRequest`.
+   */
   static async createFundingRequest(params: {
     userId: string;
     amount: DecimalLike;
     method: "stripe" | "mtn_momo" | "airtel_money" | "bank_transfer";
     phoneNumber?: string;
-    metadata?: Prisma.JsonObject; 
+    metadata?: Prisma.JsonObject;
   }) {
     const wallet = await this.ensureWallet(params.userId);
     const amount = toDecimal(params.amount);
@@ -90,15 +209,39 @@ export class WalletService {
         method: params.method,
         status: "pending",
         phoneNumber: params.phoneNumber,
-        metadata: (params.metadata ?? {}) as Prisma.JsonObject, 
+        metadata: (params.metadata ?? {}) as Prisma.JsonObject,
         expiresAt: new Date(Date.now() + 30 * 60 * 1000),
       },
     });
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // confirmFunding
-  // ─────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────
+  //  confirmFunding
+  // ───────────────────────────────────────────────────────────────────────
+  /**
+   * THE CRITICAL ATOMIC OPERATION.
+   *
+   * Called by the **provider webhook** (Stripe `payment_intent.succeeded`,
+   * MTN `PaymentCallback`, etc.) — or by the test simulator.
+   *
+   * Inside ONE `prisma.$transaction` we:
+   *  1. Load the `FundingRequest` + its wallet.
+   *  2. Guard: must be `pending` (replay-safe — completed/failed requests
+   *     are rejected so we never credit twice).
+   *  3. Guard: must not be expired — if it is, we mark it `failed`
+   *     and abort the credit.
+   *  4. Mark the funding request `completed` and stamp `providerRef`.
+   *  5. Increment `wallet.balance` by the request amount.
+   *  6. Insert a `WalletTransaction` of type `"funding"` capturing
+   *     `balanceBefore` / `balanceAfter` for an immutable audit trail.
+   *
+   * ONLY after the DB commit succeeds do we enqueue `wallet.funded`
+   * (for emails, push notifications, analytics).
+   *
+   * @param fundingRequestId  The row created in `createFundingRequest`.
+   * @param providerRef       The provider's own transaction id/reference.
+   * @throws Error if the request is missing, already terminal, or expired.
+   */
   static async confirmFunding(fundingRequestId: string, providerRef: string) {
     const result = await prisma.$transaction(async (tx) => {
       const req = await tx.fundingRequest.findUnique({
@@ -165,17 +308,44 @@ export class WalletService {
     return result;
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // simulateFundingSuccess
-  // ─────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────
+  //  simulateFundingSuccess
+  // ───────────────────────────────────────────────────────────────────────
+  /**
+   * TEST-ONLY helper. Mints a fake `providerRef` and calls
+   * `confirmFunding()`. Use this in dev/staging so you don't need a
+   * real Stripe webhook to test the happy path.
+   *
+   * Must NEVER be wired into a production route.
+   */
   static async simulateFundingSuccess(fundingRequestId: string) {
     const providerRef = `SIM-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     return this.confirmFunding(fundingRequestId, providerRef);
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // transferToVault
-  // ─────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────
+  //  transferToVault
+  // ───────────────────────────────────────────────────────────────────────
+  /**
+   * Moves money from the user's **Wallet** into a specific **Escrow Vault**.
+   *
+   * This is the bridge between Layer 2 and Layer 3 in the architecture.
+   * All 4 mutations happen inside ONE transaction:
+   *  1. Debit `wallet.balance` (and emit a negative `vault_deposit` row).
+   *  2. Credit `escrowAccount.balance`.
+   *  3. Insert a `Transaction` of type `"deposit"` linking the two sides.
+   *
+   * Guards:
+   *  - Amount must be > 0.
+   *  - Wallet must exist and not be `frozen`.
+   *  - Wallet must have sufficient balance.
+   *  - Escrow account must exist.
+   *  - Caller must be the project's `clientId` (only owners can fund
+   *    their own vault — prevents user A from funding user B's project).
+   *  - Currency on both sides must match (no cross-currency leakage).
+   *
+   * Emits `wallet.vault_transfer` post-commit for notifications.
+   */
   static async transferToVault(params: {
     userId: string;
     escrowAccountId: string;
@@ -270,9 +440,17 @@ export class WalletService {
     return result;
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // getProjectVaultBalance
-  // ─────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────
+  //  getProjectVaultBalance
+  // ───────────────────────────────────────────────────────────────────────
+  /**
+   * Returns a single vault's balance plus the caller's own deposit
+   * history against that vault. Use for the "Project Vault Detail" page.
+   *
+   * Note: we DON'T enforce ownership here at the DB level — the controller
+   * is expected to authorize. Add an extra check if you need strict
+   * server-side ownership verification.
+   */
   static async getProjectVaultBalance(userId: string, escrowAccountId: string) {
     const escrow = await prisma.escrowAccount.findUnique({
       where: { id: escrowAccountId },
@@ -303,9 +481,20 @@ export class WalletService {
     };
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // listUserProjectVaults
-  // ─────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────
+  //  listUserProjectVaults
+  // ───────────────────────────────────────────────────────────────────────
+  /**
+   * Lists every escrow vault owned by the user across all their projects.
+   *
+   * For each vault we compute:
+   *  - `currentBalance`   → live balance in the escrow account.
+   *  - `yourDeposits`     → sum of `deposit` transactions by this user.
+   *  - `yourReleases`     → sum of `release` + `auto_payment` transactions.
+   *  - `yourNet`          → deposits − releases (the user's effective stake).
+   *
+   * Used by the "My Project Vaults" dashboard tab.
+   */
   static async listUserProjectVaults(userId: string) {
     const escrows = await prisma.escrowAccount.findMany({
       where: { project: { clientId: userId } },
@@ -340,9 +529,20 @@ export class WalletService {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // getWalletHistory
-  // ─────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────
+  //  getWalletHistory
+  // ───────────────────────────────────────────────────────────────────────
+  /**
+   * Paginated, optionally filtered history of `WalletTransaction` rows.
+   *
+   * Filters:
+   *  - `page` / `limit` → standard offset pagination.
+   *  - `type`           → restrict to a single `WalletTransactionType`
+   *                      (e.g. only "funding" or only "vault_deposit").
+   *
+   * Returns `{ items, total, page, limit, totalPages }` for easy
+   * table rendering on the frontend.
+   */
   static async getWalletHistory(
     userId: string,
     opts: { page?: number; limit?: number; type?: WalletTransactionType } = {},
@@ -370,9 +570,25 @@ export class WalletService {
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // setWalletStatus
-  // ─────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────
+  //  setWalletStatus
+  // ───────────────────────────────────────────────────────────────────────
+  /**
+   * Admin operation: freeze or unfreeze a wallet.
+   *
+   *  - Frozen wallets:
+   *      • `transferToVault()` will refuse with "Wallet is frozen".
+   *      • `confirmFunding()` will STILL succeed (the user may top up
+   *        while frozen — admins typically allow this for reconciliation).
+   *  - Unfrozen wallets:
+   *      • `frozenReason` is cleared back to `null`.
+   *
+   * Emits `wallet.frozen` / `wallet.unfrozen` for audit-log subscribers.
+   *
+   * @param userId  The wallet owner.
+   * @param status  "active" or "frozen".
+   * @param reason  Required when freezing; ignored when unfreezing.
+   */
   static async setWalletStatus(
     userId: string,
     status: "active" | "frozen",

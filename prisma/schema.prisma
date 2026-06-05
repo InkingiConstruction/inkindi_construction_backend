@@ -316,6 +316,9 @@ model User {
   notifications        Notification[]
   sentMessages         Message[]
   receivedMessages     Message[]              @relation("MessageRecipient")
+  siteDailyReports     SiteDailyReport[]
+  siteInventoryLogs    SiteInventoryLog[]
+  deliveryVerifications DeliveryVerification[]
   auditLogs            AuditLog[]
   activityLogs         ActivityLog[]
   apiKeys              ApiKey[]
@@ -395,6 +398,9 @@ model Project {
   disputes      Dispute[]
   messages      Message[]
   auditLogs     AuditLog[]
+  siteDailyReports SiteDailyReport[]
+  siteInventoryLogs SiteInventoryLog[]
+  deliveryVerifications DeliveryVerification[]
 
   @@index([clientId])
   @@index([engineerId])
@@ -631,10 +637,75 @@ model Delivery {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  verifications   DeliveryVerification[]
+
   @@index([purchaseOrderId])
   @@index([supplierId])
   @@index([status])
   @@map("delivery")
+}
+
+model SiteDailyReport {
+  id             String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  siteAgentId    String
+  siteAgent      User     @relation(fields: [siteAgentId], references: [id])
+  weather        String
+  workforceCount Int
+  taskProgress   String
+  notes          String?
+  evidence       Json     @default("[]")
+  reportDate     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([siteAgentId])
+  @@index([reportDate])
+  @@map("site_daily_report")
+}
+
+model SiteInventoryLog {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  siteAgentId String
+  siteAgent   User     @relation(fields: [siteAgentId], references: [id])
+  material    String
+  unit        String?
+  quantity    Decimal  @db.Decimal(15, 2)
+  direction   String   @default("consumed")
+  notes       String?
+  loggedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([projectId])
+  @@index([siteAgentId])
+  @@index([material])
+  @@map("site_inventory_log")
+}
+
+model DeliveryVerification {
+  id            String   @id @default(cuid())
+  deliveryId    String?
+  delivery      Delivery? @relation(fields: [deliveryId], references: [id])
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  siteAgentId   String
+  siteAgent     User     @relation(fields: [siteAgentId], references: [id])
+  deliveryCode  String
+  pin           String
+  remarks       String?
+  receiptPhotos Json     @default("[]")
+  verifiedAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([deliveryId])
+  @@index([projectId])
+  @@index([siteAgentId])
+  @@index([deliveryCode])
+  @@map("delivery_verification")
 }
 
 model ProgressPhoto {

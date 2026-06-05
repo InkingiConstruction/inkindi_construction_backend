@@ -23,6 +23,7 @@ import purchaseOrderRoutes from "./rfqs/purchase-order.route";
 import quoteRoutes from "./quotes/quote.route";
 import deliveryRoutes from "./deliveries/delivery.route";
 import supplierInventoryRoutes from "./suppliers/inventory.route";
+import siteAgentRoutes from "./site-agent/site-agent.route";
 
 import inspectionRoutes from "./inspections/inspection.route";
 
@@ -63,6 +64,7 @@ router.use("/quotes", quoteRoutes);
 router.use("/purchase-orders", purchaseOrderRoutes);
 router.use("/deliveries", deliveryRoutes);
 router.use("/supplier-inventory", supplierInventoryRoutes);
+router.use("/site-agent", siteAgentRoutes);
 
 router.use("/inspections", inspectionRoutes);
 
