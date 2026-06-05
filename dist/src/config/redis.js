@@ -12,7 +12,9 @@ exports.redisConnection = exports.redisClient = exports.redisOptions = void 0;
 const ioredis_1 = require("ioredis");
 const logger_middleware_1 = require("../common/middleware/logger.middleware");
 const redisUrl = process.env.REDIS_URL || "redis://127.0.0.1:6379";
-const redisUsesTls = redisUrl.startsWith("rediss://") || process.env.REDIS_TLS === "true";
+const redisUsesTls = redisUrl.startsWith("rediss://") ||
+    redisUrl.includes(".upstash.io") ||
+    process.env.REDIS_TLS === "true";
 exports.redisOptions = {
     maxRetriesPerRequest: null, // BullMQ requirement
     enableReadyCheck: false,

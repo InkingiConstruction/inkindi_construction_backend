@@ -11,7 +11,10 @@ import { Redis, type RedisOptions } from "ioredis";
 import { logger } from "../common/middleware/logger.middleware";
 
 const redisUrl = process.env.REDIS_URL || "redis://127.0.0.1:6379";
-const redisUsesTls = redisUrl.startsWith("rediss://") || process.env.REDIS_TLS === "true";
+const redisUsesTls =
+  redisUrl.startsWith("rediss://") ||
+  redisUrl.includes(".upstash.io") ||
+  process.env.REDIS_TLS === "true";
 
 export const redisOptions: RedisOptions = {
   maxRetriesPerRequest: null, // BullMQ requirement
