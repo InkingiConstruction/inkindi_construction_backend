@@ -7,9 +7,13 @@
  * PRINCIPLE: SOLID (HTTP layer separate from business logic in wallet.service.ts)
  * ============================================================================
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteProjectVault = exports.getProjectVaultDetails = exports.listMyProjectVaults = exports.transferToVault = exports.confirmFundingTest = exports.initiateFunding = exports.getMyWalletHistory = exports.getMyWallet = void 0;
 const escrow_service_1 = require("./escrow.service");
+const stripe_1 = __importDefault(require("../../../config/stripe"));
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 /**
  * @swagger
@@ -270,9 +274,32 @@ const initiateFunding = async (req, res) => {
             phoneNumber,
             metadata: { initiatedBy: req.user.id, ip: req.ip },
         });
+        let paymentIntent;
+        if (method === "stripe") {
+            if (!process.env.STRIPE_SECRET_KEY) {
+                return res.status(500).json({ message: "Stripe secret key is not configured" });
+            }
+            const intent = await stripe_1.default.paymentIntents.create({
+                amount: Math.round(amount),
+                currency: "rwf",
+                automatic_payment_methods: { enabled: true },
+                metadata: {
+                    fundingRequestId: funding.id,
+                    walletId: funding.walletId,
+                    userId: req.user.id,
+                    type: "wallet_funding",
+                    amount: String(amount),
+                },
+            });
+            paymentIntent = {
+                id: intent.id,
+                clientSecret: intent.client_secret,
+            };
+        }
         return res.status(201).json({
             message: "Funding request created. Confirm to complete.",
             fundingRequest: funding,
+            paymentIntent,
         });
     }
     catch (error) {

@@ -10,6 +10,7 @@
 import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import { WalletService } from "./escrow.service";
+import stripe from "../../../config/stripe";
 
 const getParamId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -278,9 +279,36 @@ export const initiateFunding = async (req: Request, res: Response) => {
       metadata: { initiatedBy: req.user.id, ip: req.ip } as Prisma.JsonObject,
     });
 
+    let paymentIntent: { id: string; clientSecret: string | null } | undefined;
+
+    if (method === "stripe") {
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(500).json({ message: "Stripe secret key is not configured" });
+      }
+
+      const intent = await stripe.paymentIntents.create({
+        amount: Math.round(amount),
+        currency: "rwf",
+        automatic_payment_methods: { enabled: true },
+        metadata: {
+          fundingRequestId: funding.id,
+          walletId: funding.walletId,
+          userId: req.user.id,
+          type: "wallet_funding",
+          amount: String(amount),
+        },
+      });
+
+      paymentIntent = {
+        id: intent.id,
+        clientSecret: intent.client_secret,
+      };
+    }
+
     return res.status(201).json({
       message: "Funding request created. Confirm to complete.",
       fundingRequest: funding,
+      paymentIntent,
     });
   } catch (error) {
     console.error("Initiate funding error:", error);
