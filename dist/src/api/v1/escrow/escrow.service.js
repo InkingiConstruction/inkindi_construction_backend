@@ -435,7 +435,7 @@ class WalletService {
      */
     static async listUserProjectVaults(userId) {
         const escrows = await db_js_1.default.escrowAccount.findMany({
-            where: { project: { clientId: userId } },
+            where: { project: { clientId: userId }, deletedAt: null },
             include: {
                 project: { select: { id: true, name: true, status: true } },
                 transactions: {
@@ -463,6 +463,68 @@ class WalletService {
                 yourNet: yourDeposits.minus(yourReleases),
             };
         });
+    }
+    static async deleteProjectVault(userId, escrowAccountId) {
+        const result = await db_js_1.default.$transaction(async (tx) => {
+            const wallet = await tx.wallet.findUnique({ where: { userId } });
+            if (!wallet)
+                throw new Error("Wallet not found");
+            const escrow = await tx.escrowAccount.findUnique({
+                where: { id: escrowAccountId },
+                include: { project: true },
+            });
+            if (!escrow)
+                throw new Error("Project wallet not found");
+            if (escrow.project.clientId !== userId) {
+                throw new Error("Only the project owner can delete this wallet");
+            }
+            if (escrow.lockedBalance.gt(0)) {
+                throw new Error("Cannot delete a wallet with locked milestone funds");
+            }
+            if (escrow.deletedAt) {
+                return { walletId: wallet.id, escrowAccountId: escrow.id, refundedAmount: new client_1.Prisma.Decimal(0) };
+            }
+            const refundAmount = new client_1.Prisma.Decimal(escrow.balance);
+            const walletBefore = wallet.balance;
+            const walletAfter = walletBefore.plus(refundAmount);
+            if (refundAmount.gt(0)) {
+                await tx.wallet.update({
+                    where: { id: wallet.id },
+                    data: { balance: { increment: refundAmount } },
+                });
+                await tx.walletTransaction.create({
+                    data: {
+                        walletId: wallet.id,
+                        type: "vault_refund",
+                        amount: refundAmount,
+                        balanceBefore: walletBefore,
+                        balanceAfter: walletAfter,
+                        currency: wallet.currency,
+                        status: "completed",
+                        escrowAccountId: escrow.id,
+                        completedAt: new Date(),
+                        description: `Refund from deleted project wallet: ${escrow.project.name}`,
+                        reference: `WT-VAULT-REFUND-${Date.now()}`,
+                    },
+                });
+            }
+            await tx.escrowAccount.update({
+                where: { id: escrow.id },
+                data: {
+                    balance: 0,
+                    status: "deleted",
+                    deletedAt: new Date(),
+                },
+            });
+            return { walletId: wallet.id, escrowAccountId: escrow.id, refundedAmount: refundAmount };
+        });
+        await wallet_queue_js_1.walletQueue.add("wallet.vault_deleted", {
+            userId,
+            walletId: result.walletId,
+            escrowAccountId: result.escrowAccountId,
+            amount: Number(result.refundedAmount),
+        });
+        return result;
     }
     // ───────────────────────────────────────────────────────────────────────
     //  getWalletHistory

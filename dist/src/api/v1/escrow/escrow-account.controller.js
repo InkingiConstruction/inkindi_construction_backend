@@ -8,7 +8,7 @@
  * ============================================================================
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProjectVaultDetails = exports.listMyProjectVaults = exports.transferToVault = exports.confirmFundingTest = exports.initiateFunding = exports.getMyWalletHistory = exports.getMyWallet = void 0;
+exports.deleteProjectVault = exports.getProjectVaultDetails = exports.listMyProjectVaults = exports.transferToVault = exports.confirmFundingTest = exports.initiateFunding = exports.getMyWalletHistory = exports.getMyWallet = void 0;
 const escrow_service_1 = require("./escrow.service");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 /**
@@ -602,3 +602,23 @@ const getProjectVaultDetails = async (req, res) => {
     }
 };
 exports.getProjectVaultDetails = getProjectVaultDetails;
+const deleteProjectVault = async (req, res) => {
+    try {
+        const id = getParamId(req.params.escrowAccountId);
+        if (!id) {
+            return res.status(400).json({ message: "escrowAccountId required" });
+        }
+        const result = await escrow_service_1.WalletService.deleteProjectVault(req.user.id, id);
+        return res.json({
+            message: "Project wallet deleted. Remaining balance returned to General Wallet.",
+            data: result,
+        });
+    }
+    catch (error) {
+        console.error("Delete project vault error:", error);
+        return res
+            .status(400)
+            .json({ message: error.message ?? "Project wallet delete failed" });
+    }
+};
+exports.deleteProjectVault = deleteProjectVault;

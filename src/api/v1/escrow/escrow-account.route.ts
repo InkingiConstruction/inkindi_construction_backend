@@ -58,6 +58,7 @@ import {
   transferToVault,
   listMyProjectVaults,
   getProjectVaultDetails,
+  deleteProjectVault,
 } from "./escrow-account.controller";
 import { requiredAuth } from "../middleware/auth.middleware";
 import { requireRole } from "../middleware/role.middleware";
@@ -73,5 +74,6 @@ router.post("/fund/:fundingId/confirm", requireRole("client", "admin"), confirmF
 router.post("/transfer-to-vault", requireRole("client"), transferToVault);
 router.get("/project-vaults", listMyProjectVaults);
 router.get("/project-vaults/:escrowAccountId", getProjectVaultDetails);
+router.delete("/project-vaults/:escrowAccountId", requireRole("client"), deleteProjectVault);
 
 export default router;

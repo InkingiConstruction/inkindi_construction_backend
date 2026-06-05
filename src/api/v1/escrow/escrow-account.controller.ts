@@ -608,3 +608,23 @@ export const getProjectVaultDetails = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const deleteProjectVault = async (req: Request, res: Response) => {
+  try {
+    const id = getParamId(req.params.escrowAccountId);
+    if (!id) {
+      return res.status(400).json({ message: "escrowAccountId required" });
+    }
+
+    const result = await WalletService.deleteProjectVault(req.user.id, id);
+    return res.json({
+      message: "Project wallet deleted. Remaining balance returned to General Wallet.",
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("Delete project vault error:", error);
+    return res
+      .status(400)
+      .json({ message: error.message ?? "Project wallet delete failed" });
+  }
+};

@@ -63,4 +63,5 @@ router.post("/fund/:fundingId/confirm", (0, role_middleware_1.requireRole)("clie
 router.post("/transfer-to-vault", (0, role_middleware_1.requireRole)("client"), escrow_account_controller_1.transferToVault);
 router.get("/project-vaults", escrow_account_controller_1.listMyProjectVaults);
 router.get("/project-vaults/:escrowAccountId", escrow_account_controller_1.getProjectVaultDetails);
+router.delete("/project-vaults/:escrowAccountId", (0, role_middleware_1.requireRole)("client"), escrow_account_controller_1.deleteProjectVault);
 exports.default = router;
