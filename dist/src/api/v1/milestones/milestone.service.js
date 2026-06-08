@@ -210,6 +210,21 @@ class MilestoneService {
                         transactions: true,
                     },
                 },
+                inspections: {
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                    include: {
+                        supervisor: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                image: true,
+                                role: true,
+                            },
+                        },
+                    },
+                },
             },
             orderBy: [{ projectId: "asc" }, { order: "asc" }, { createdAt: "desc" }],
         });

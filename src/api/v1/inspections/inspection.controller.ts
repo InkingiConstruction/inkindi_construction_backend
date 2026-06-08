@@ -3,6 +3,7 @@ import { InspectionDecision, Prisma } from "@prisma/client";
 import { UploadApiResponse } from "cloudinary";
 import cloudinary from "../../../config/cloudinary.js";
 import prisma from "../../../config/db.js";
+import { notifyProjectParticipants } from "../../../lib/notifications.js";
 
 type InspectionPhoto = {
   cloudinaryUrl: string;
@@ -266,6 +267,25 @@ export const createInspection = async (req: Request, res: Response) => {
 
       return createdInspection;
     });
+
+    if (decision) {
+      const approved = decision === "approved";
+      await notifyProjectParticipants({
+        projectId: milestone.projectId,
+        excludeUserId: req.user.id,
+        title: approved ? "Milestone approved" : "Milestone revision requested",
+        body: notes
+          ? `${milestone.name}: ${String(notes)}`
+          : `${milestone.name} was ${approved ? "approved" : "sent back for revision"}.`,
+        data: {
+          type: "milestone_status_updated",
+          projectId: milestone.projectId,
+          milestoneId: milestone.id,
+          status: nextMilestoneStatus,
+          decision,
+        },
+      });
+    }
 
     return res.status(201).json({
       message: "Inspection created successfully",

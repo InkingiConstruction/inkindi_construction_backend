@@ -7,6 +7,7 @@ exports.deleteInspection = exports.updateInspection = exports.getInspectionById 
 const client_1 = require("@prisma/client");
 const cloudinary_js_1 = __importDefault(require("../../../config/cloudinary.js"));
 const db_js_1 = __importDefault(require("../../../config/db.js"));
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJsonField = (value) => {
     if (!value)
@@ -196,6 +197,24 @@ const createInspection = async (req, res) => {
             }
             return createdInspection;
         });
+        if (decision) {
+            const approved = decision === "approved";
+            await (0, notifications_js_1.notifyProjectParticipants)({
+                projectId: milestone.projectId,
+                excludeUserId: req.user.id,
+                title: approved ? "Milestone approved" : "Milestone revision requested",
+                body: notes
+                    ? `${milestone.name}: ${String(notes)}`
+                    : `${milestone.name} was ${approved ? "approved" : "sent back for revision"}.`,
+                data: {
+                    type: "milestone_status_updated",
+                    projectId: milestone.projectId,
+                    milestoneId: milestone.id,
+                    status: nextMilestoneStatus,
+                    decision,
+                },
+            });
+        }
         return res.status(201).json({
             message: "Inspection created successfully",
             inspection,
