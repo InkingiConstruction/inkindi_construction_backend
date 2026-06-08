@@ -9,6 +9,7 @@ import {
   isExpoPushToken,
   sendExpoPushNotification,
 } from "../../../lib/expo.js";
+import { notifyUser } from "../../../lib/notifications.js";
 
 const getId = (id: string | string[] | undefined) =>
   Array.isArray(id) ? id[0] : id;
@@ -71,6 +72,28 @@ export const registerExpoPushToken = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Register Expo push token error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const sendTestPushNotification = async (req: Request, res: Response) => {
+  try {
+    const notification = await notifyUser({
+      userId: req.user.id,
+      title: "Inkingi test notification",
+      body: "If you see this popup, phone push notifications are working.",
+      data: {
+        type: "test_push",
+        createdAt: new Date().toISOString(),
+      },
+    });
+
+    return res.json({
+      message: "Test push notification queued",
+      notification,
+    });
+  } catch (error) {
+    console.error("Send test push notification error:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };

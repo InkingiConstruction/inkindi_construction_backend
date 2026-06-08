@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendExpoPushNotification = exports.isExpoPushToken = void 0;
+exports.getExpoPushReceipts = exports.sendExpoPushNotification = exports.isExpoPushToken = void 0;
 const expo_server_sdk_1 = require("expo-server-sdk");
 const expo = new expo_server_sdk_1.Expo({
     accessToken: process.env.EXPO_ACCESS_TOKEN,
@@ -10,6 +10,8 @@ exports.isExpoPushToken = isExpoPushToken;
 const sendExpoPushNotification = async ({ token, title, body, data, }) => {
     const message = {
         to: token,
+        channelId: "default",
+        priority: "high",
         sound: "default",
         title,
         body,
@@ -24,3 +26,15 @@ const sendExpoPushNotification = async ({ token, title, body, data, }) => {
     return tickets;
 };
 exports.sendExpoPushNotification = sendExpoPushNotification;
+const getExpoPushReceipts = async (receiptIds) => {
+    if (receiptIds.length === 0)
+        return {};
+    const chunks = expo.chunkPushNotificationReceiptIds(receiptIds);
+    const receipts = {};
+    for (const chunk of chunks) {
+        const chunkReceipts = await expo.getPushNotificationReceiptsAsync(chunk);
+        Object.assign(receipts, chunkReceipts);
+    }
+    return receipts;
+};
+exports.getExpoPushReceipts = getExpoPushReceipts;

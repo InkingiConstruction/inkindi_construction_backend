@@ -3,10 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteNotification = exports.updateNotification = exports.getNotificationById = exports.getNotifications = exports.createNotification = exports.registerExpoPushToken = void 0;
+exports.deleteNotification = exports.updateNotification = exports.getNotificationById = exports.getNotifications = exports.createNotification = exports.sendTestPushNotification = exports.registerExpoPushToken = void 0;
 const client_1 = require("@prisma/client");
 const prisma_js_1 = __importDefault(require("../../../lib/prisma.js"));
 const expo_js_1 = require("../../../lib/expo.js");
+const notifications_js_1 = require("../../../lib/notifications.js");
 const getId = (id) => Array.isArray(id) ? id[0] : id;
 const parseJson = (value) => {
     if (!value)
@@ -62,6 +63,28 @@ const registerExpoPushToken = async (req, res) => {
     }
 };
 exports.registerExpoPushToken = registerExpoPushToken;
+const sendTestPushNotification = async (req, res) => {
+    try {
+        const notification = await (0, notifications_js_1.notifyUser)({
+            userId: req.user.id,
+            title: "Inkingi test notification",
+            body: "If you see this popup, phone push notifications are working.",
+            data: {
+                type: "test_push",
+                createdAt: new Date().toISOString(),
+            },
+        });
+        return res.json({
+            message: "Test push notification queued",
+            notification,
+        });
+    }
+    catch (error) {
+        console.error("Send test push notification error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.sendTestPushNotification = sendTestPushNotification;
 const createNotification = async (req, res) => {
     try {
         const { userId, channel, title, body, data, status, failureReason } = req.body;

@@ -36,6 +36,40 @@ const sendNotificationEmail = ({ email, title, body, }) => {
     `,
     });
 };
+const checkPushReceiptsLater = ({ notificationId, receiptIds, }) => {
+    if (receiptIds.length === 0)
+        return;
+    setTimeout(() => {
+        void (async () => {
+            try {
+                const receipts = await (0, expo_js_1.getExpoPushReceipts)(receiptIds);
+                const failedReceipt = Object.values(receipts).find((receipt) => receipt.status === "error");
+                await prisma_js_1.default.notification.update({
+                    where: { id: notificationId },
+                    data: {
+                        status: failedReceipt ? "failed" : "delivered",
+                        deliveredAt: failedReceipt ? undefined : new Date(),
+                        failureReason: failedReceipt?.message,
+                        data: {
+                            receiptIds,
+                            expoReceipts: receipts,
+                        },
+                    },
+                });
+            }
+            catch (error) {
+                await prisma_js_1.default.notification.update({
+                    where: { id: notificationId },
+                    data: {
+                        failureReason: error instanceof Error
+                            ? `Receipt check failed: ${error.message}`
+                            : "Receipt check failed",
+                    },
+                });
+            }
+        })();
+    }, 5000);
+};
 const notifyUser = async ({ userId, title, body, data = {}, }) => {
     const user = await prisma_js_1.default.user.findUnique({
         where: { id: userId },
@@ -127,6 +161,9 @@ const notifyUser = async ({ userId, title, body, data = {}, }) => {
             data,
         });
         const failedTicket = tickets.find((ticket) => ticket.status === "error");
+        const receiptIds = tickets
+            .filter((ticket) => ticket.status === "ok" && "id" in ticket)
+            .map((ticket) => ticket.id);
         await prisma_js_1.default.notification.update({
             where: { id: pushNotification.id },
             data: {
@@ -138,9 +175,16 @@ const notifyUser = async ({ userId, title, body, data = {}, }) => {
                 data: {
                     ...data,
                     expoTickets: tickets,
+                    receiptIds,
                 },
             },
         });
+        if (!failedTicket) {
+            checkPushReceiptsLater({
+                notificationId: pushNotification.id,
+                receiptIds,
+            });
+        }
         return inAppNotification;
     }
     catch (error) {

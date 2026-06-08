@@ -19,6 +19,8 @@ export const sendExpoPushNotification = async ({
 }) => {
   const message: ExpoPushMessage = {
     to: token,
+    channelId: "default",
+    priority: "high",
     sound: "default",
     title,
     body,
@@ -34,4 +36,18 @@ export const sendExpoPushNotification = async ({
   }
 
   return tickets;
+};
+
+export const getExpoPushReceipts = async (receiptIds: string[]) => {
+  if (receiptIds.length === 0) return {};
+
+  const chunks = expo.chunkPushNotificationReceiptIds(receiptIds);
+  const receipts = {};
+
+  for (const chunk of chunks) {
+    const chunkReceipts = await expo.getPushNotificationReceiptsAsync(chunk);
+    Object.assign(receipts, chunkReceipts);
+  }
+
+  return receipts as Record<string, { status: "ok" | "error"; message?: string; details?: unknown }>;
 };
