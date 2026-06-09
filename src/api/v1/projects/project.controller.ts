@@ -70,6 +70,21 @@ export const getProjectById = async (req: Request, res: Response) => {
   }
 };
 
+export const getProjectFeed = async (req: Request, res: Response) => {
+  try {
+    const id = getParamId(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: "Project ID is required" });
+    }
+
+    const feed = await ProjectService.getProjectFeed(id, req.user.id, req.user.role);
+    return res.json(feed);
+  } catch (error: any) {
+    const status = error.message === "Project not found" ? 404 : error.message === "Forbidden" ? 403 : 500;
+    return res.status(status).json({ message: error.message || "Internal Server Error" });
+  }
+};
+
 export const updateProject = async (req: Request, res: Response) => {
   try {
     const id = getParamId(req.params.id);

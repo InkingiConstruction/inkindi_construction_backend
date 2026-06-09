@@ -18,6 +18,7 @@ import {
   deleteProjectImage,
   deleteProject,
   getProjectById,
+  getProjectFeed,
   getProjects,
   toggleProjectStatus,
   updateProject,
@@ -46,6 +47,14 @@ router.get(
   requireRole("client", "engineer", "supervisor", "supplier", "site_agent", "admin"), 
   cacheMiddleware(30), // Caches project listings for 30s
   getProjects
+);
+
+router.get(
+  "/:id/feed",
+  requiredAuth,
+  requireRole("client", "engineer", "supervisor", "supplier", "site_agent", "admin"),
+  cacheMiddleware(15),
+  getProjectFeed
 );
 
 router.get(
