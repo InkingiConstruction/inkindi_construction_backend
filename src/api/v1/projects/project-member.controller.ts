@@ -12,6 +12,30 @@ const getParamId = (id: string | string[] | undefined) =>
 
 const projectTeamRoles = ["engineer", "supervisor"] as const;
 
+const projectMemberUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  image: true,
+};
+
+const projectMemberInclude = {
+  project: {
+    include: {
+      client: { select: projectMemberUserSelect },
+      engineer: { select: projectMemberUserSelect },
+      projectMembers: {
+        include: { user: { select: projectMemberUserSelect } },
+      },
+      milestones: true,
+    },
+  },
+  user: {
+    select: projectMemberUserSelect,
+  },
+};
+
 const canManageProjectMember = (
   project: { clientId: string; engineerId: string | null },
   userId: string,
@@ -172,18 +196,7 @@ export const createProjectMember = async (req: Request, res: Response) => {
         userId: user.id,
         role,
       },
-      include: {
-        project: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            image: true,
-          },
-        },
-      },
+      include: projectMemberInclude,
     });
 
     cacheStore.clear();
@@ -227,18 +240,7 @@ export const getProjectMembers = async (req: Request, res: Response) => {
             ? { project: { clientId: req.user.id } }
             : { userId: req.user.id }),
       },
-      include: {
-        project: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            image: true,
-          },
-        },
-      },
+      include: projectMemberInclude,
       orderBy: {
         invitedAt: "desc",
       },
@@ -261,18 +263,7 @@ export const getProjectMemberById = async (req: Request, res: Response) => {
 
     const assignment = await prisma.projectMember.findUnique({
       where: { id },
-      include: {
-        project: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            image: true,
-          },
-        },
-      },
+      include: projectMemberInclude,
     });
 
     if (!assignment) {
@@ -333,18 +324,7 @@ export const updateProjectMember = async (req: Request, res: Response) => {
         ...(role ? { role: String(role) } : {}),
         ...(status ? { status: status as never } : {}),
       },
-      include: {
-        project: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            image: true,
-          },
-        },
-      },
+      include: projectMemberInclude,
     });
 
     cacheStore.clear();
@@ -421,18 +401,7 @@ export const acceptProjectMember = async (req: Request, res: Response) => {
           acceptedAt: new Date(),
           removedAt: null,
         },
-        include: {
-          project: true,
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              image: true,
-            },
-          },
-        },
+        include: projectMemberInclude,
       });
 
       if (updated.role === "engineer") {
@@ -544,18 +513,7 @@ export const rejectProjectMember = async (req: Request, res: Response) => {
         status: "declined",
         removedAt: new Date(),
       },
-      include: {
-        project: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            image: true,
-          },
-        },
-      },
+      include: projectMemberInclude,
     });
 
     cacheStore.clear();

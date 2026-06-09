@@ -9,6 +9,28 @@ const cache_service_js_1 = require("../../../common/services/cache.service.js");
 const notifications_js_1 = require("../../../lib/notifications.js");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
 const projectTeamRoles = ["engineer", "supervisor"];
+const projectMemberUserSelect = {
+    id: true,
+    name: true,
+    email: true,
+    role: true,
+    image: true,
+};
+const projectMemberInclude = {
+    project: {
+        include: {
+            client: { select: projectMemberUserSelect },
+            engineer: { select: projectMemberUserSelect },
+            projectMembers: {
+                include: { user: { select: projectMemberUserSelect } },
+            },
+            milestones: true,
+        },
+    },
+    user: {
+        select: projectMemberUserSelect,
+    },
+};
 const canManageProjectMember = (project, userId, role) => {
     const normalizedRole = String(role || "").trim().toLowerCase();
     if (normalizedRole === "admin")
@@ -144,18 +166,7 @@ const createProjectMember = async (req, res) => {
                 userId: user.id,
                 role,
             },
-            include: {
-                project: true,
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        role: true,
-                        image: true,
-                    },
-                },
-            },
+            include: projectMemberInclude,
         });
         cache_service_js_1.cacheStore.clear();
         await (0, notifications_js_1.notifyUser)({
@@ -194,18 +205,7 @@ const getProjectMembers = async (req, res) => {
                         ? { project: { clientId: req.user.id } }
                         : { userId: req.user.id }),
             },
-            include: {
-                project: true,
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        role: true,
-                        image: true,
-                    },
-                },
-            },
+            include: projectMemberInclude,
             orderBy: {
                 invitedAt: "desc",
             },
@@ -226,18 +226,7 @@ const getProjectMemberById = async (req, res) => {
         }
         const assignment = await db_js_1.default.projectMember.findUnique({
             where: { id },
-            include: {
-                project: true,
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        role: true,
-                        image: true,
-                    },
-                },
-            },
+            include: projectMemberInclude,
         });
         if (!assignment) {
             return res.status(404).json({ message: "Assignment not found" });
@@ -282,18 +271,7 @@ const updateProjectMember = async (req, res) => {
                 ...(role ? { role: String(role) } : {}),
                 ...(status ? { status: status } : {}),
             },
-            include: {
-                project: true,
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        role: true,
-                        image: true,
-                    },
-                },
-            },
+            include: projectMemberInclude,
         });
         cache_service_js_1.cacheStore.clear();
         if (status !== undefined) {
@@ -353,18 +331,7 @@ const acceptProjectMember = async (req, res) => {
                     acceptedAt: new Date(),
                     removedAt: null,
                 },
-                include: {
-                    project: true,
-                    user: {
-                        select: {
-                            id: true,
-                            name: true,
-                            email: true,
-                            role: true,
-                            image: true,
-                        },
-                    },
-                },
+                include: projectMemberInclude,
             });
             if (updated.role === "engineer") {
                 await tx.project.update({
@@ -454,18 +421,7 @@ const rejectProjectMember = async (req, res) => {
                 status: "declined",
                 removedAt: new Date(),
             },
-            include: {
-                project: true,
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        role: true,
-                        image: true,
-                    },
-                },
-            },
+            include: projectMemberInclude,
         });
         cache_service_js_1.cacheStore.clear();
         await (0, notifications_js_1.notifyUsers)([rejectedAssignment.project.clientId, rejectedAssignment.project.engineerId].filter((userId) => Boolean(userId && userId !== rejectedAssignment.userId)), {
