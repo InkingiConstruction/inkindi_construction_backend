@@ -84,6 +84,43 @@ const buildUpdateData = (body) => {
         data.paidAt = body.paidAt ? new Date(String(body.paidAt)) : null;
     return data;
 };
+const validateStatusWorkflow = async (milestone, nextStatus, userRole) => {
+    const normalizedRole = String(userRole || "").trim().toLowerCase();
+    if (normalizedRole === "admin")
+        return;
+    if (normalizedRole === "engineer") {
+        if (nextStatus !== "pending_supervisor") {
+            throw new Error("Engineers can only submit milestone packages for supervisor review");
+        }
+        if (!["pending", "active", "revision_required"].includes(milestone.status)) {
+            throw new Error("Only pending or revision-required milestones can be submitted for review");
+        }
+        const boqCount = await db_js_1.default.boqItem.count({
+            where: { milestoneId: milestone.id },
+        });
+        if (boqCount < 1) {
+            throw new Error("Add at least one BOQ item before sending the milestone package for review");
+        }
+        return;
+    }
+    if (normalizedRole === "supervisor") {
+        if (!["awaiting_client_payment", "revision_required"].includes(nextStatus)) {
+            throw new Error("Supervisors can only approve for client payment or request revision");
+        }
+        if (milestone.status !== "pending_supervisor") {
+            throw new Error("Only milestones waiting for supervisor review can be inspected");
+        }
+        return;
+    }
+    if (normalizedRole === "client") {
+        if (nextStatus !== "revision_required") {
+            throw new Error("Clients can only request revision from this endpoint");
+        }
+        if (milestone.status !== "awaiting_client_payment") {
+            throw new Error("Client revision is only available after supervisor approval");
+        }
+    }
+};
 const engineerSelect = {
     id: true,
     name: true,
@@ -286,6 +323,9 @@ class MilestoneService {
             throw new Error("Milestone not found");
         if (!canManageMilestone(existing, userId, userRole, body)) {
             throw new Error("Forbidden");
+        }
+        if (body.status !== undefined) {
+            await validateStatusWorkflow(existing, body.status, userRole);
         }
         if (body.dependsOn) {
             const dep = await db_js_1.default.milestone.findFirst({

@@ -30,6 +30,7 @@ const router = (0, express_1.Router)();
 router.post("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client"), upload_middleware_1.uploadImages, project_controller_1.createProject);
 router.get("/", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "site_agent", "admin"), (0, cache_service_1.cacheMiddleware)(30), // Caches project listings for 30s
 project_controller_1.getProjects);
+router.get("/:id/feed", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "site_agent", "admin"), (0, cache_service_1.cacheMiddleware)(15), project_controller_1.getProjectFeed);
 router.get("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "supplier", "site_agent", "admin"), (0, cache_service_1.cacheMiddleware)(30), // Caches project detail pages for 30s
 project_controller_1.getProjectById);
 router.patch("/:id/status", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "admin"), project_controller_1.toggleProjectStatus);

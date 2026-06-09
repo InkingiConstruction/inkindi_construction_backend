@@ -108,7 +108,14 @@ const updateMilestone = async (req, res) => {
     }
     catch (error) {
         console.error("Update milestone error:", error);
-        if (error.message.includes("Invalid") || error.message.includes("belong") || error.message.includes("exceed")) {
+        if (error.message.includes("Invalid") ||
+            error.message.includes("belong") ||
+            error.message.includes("exceed") ||
+            error.message.includes("Add at least one BOQ") ||
+            error.message.includes("can only") ||
+            error.message.includes("Only pending") ||
+            error.message.includes("Only milestones") ||
+            error.message.includes("Client revision")) {
             return res.status(400).json({ message: error.message });
         }
         if (error.message === "Milestone not found")

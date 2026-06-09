@@ -12,7 +12,7 @@
  * ============================================================================
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteProject = exports.deleteProjectImage = exports.changeProjectImage = exports.toggleProjectStatus = exports.updateProject = exports.getProjectById = exports.getProjects = exports.createProject = void 0;
+exports.deleteProject = exports.deleteProjectImage = exports.changeProjectImage = exports.toggleProjectStatus = exports.updateProject = exports.getProjectFeed = exports.getProjectById = exports.getProjects = exports.createProject = void 0;
 const project_service_1 = require("./project.service");
 const cache_service_1 = require("../../../common/services/cache.service");
 const getParamId = (id) => Array.isArray(id) ? id[0] : id;
@@ -66,6 +66,21 @@ const getProjectById = async (req, res) => {
     }
 };
 exports.getProjectById = getProjectById;
+const getProjectFeed = async (req, res) => {
+    try {
+        const id = getParamId(req.params.id);
+        if (!id) {
+            return res.status(400).json({ message: "Project ID is required" });
+        }
+        const feed = await project_service_1.ProjectService.getProjectFeed(id, req.user.id, req.user.role);
+        return res.json(feed);
+    }
+    catch (error) {
+        const status = error.message === "Project not found" ? 404 : error.message === "Forbidden" ? 403 : 500;
+        return res.status(status).json({ message: error.message || "Internal Server Error" });
+    }
+};
+exports.getProjectFeed = getProjectFeed;
 const updateProject = async (req, res) => {
     try {
         const id = getParamId(req.params.id);

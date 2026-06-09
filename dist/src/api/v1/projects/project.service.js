@@ -250,6 +250,247 @@ class ProjectService {
             throw new Error("Forbidden");
         return project;
     }
+    static async getProjectFeed(projectId, userId, role) {
+        const project = await db_js_1.default.project.findUnique({
+            where: { id: projectId },
+            include: { projectMembers: true },
+        });
+        if (!project)
+            throw new Error("Project not found");
+        if (!canReadProject(project, userId, role))
+            throw new Error("Forbidden");
+        const [milestones, progressPhotos, inspections, transactions, rfqs, purchaseOrders, deliveries, disputes, dailyReports, inventoryLogs, deliveryVerifications, messages,] = await Promise.all([
+            db_js_1.default.milestone.findMany({
+                where: { projectId },
+                include: { engineer: { select: { id: true, name: true, role: true, image: true } } },
+            }),
+            db_js_1.default.progressPhoto.findMany({
+                where: { projectId },
+                include: {
+                    uploadedBy: { select: { id: true, name: true, role: true, image: true } },
+                    milestone: { select: { id: true, name: true } },
+                },
+            }),
+            db_js_1.default.inspection.findMany({
+                where: { milestone: { projectId } },
+                include: {
+                    supervisor: { select: { id: true, name: true, role: true, image: true } },
+                    milestone: { select: { id: true, name: true } },
+                },
+            }),
+            db_js_1.default.transaction.findMany({
+                where: { escrowAccount: { projectId } },
+                include: {
+                    actor: { select: { id: true, name: true, role: true, image: true } },
+                    milestone: { select: { id: true, name: true } },
+                },
+            }),
+            db_js_1.default.rfq.findMany({
+                where: { projectId },
+                include: {
+                    engineer: { select: { id: true, name: true, role: true, image: true } },
+                    milestone: { select: { id: true, name: true } },
+                },
+            }),
+            db_js_1.default.purchaseOrder.findMany({
+                where: { rfq: { projectId } },
+                include: {
+                    supplier: { select: { id: true, name: true, role: true, image: true } },
+                    rfq: { select: { id: true, title: true, milestone: { select: { id: true, name: true } } } },
+                },
+            }),
+            db_js_1.default.delivery.findMany({
+                where: { purchaseOrder: { rfq: { projectId } } },
+                include: {
+                    supplier: { select: { id: true, name: true, role: true, image: true } },
+                    purchaseOrder: { select: { id: true, poNumber: true, rfq: { select: { id: true, title: true } } } },
+                },
+            }),
+            db_js_1.default.dispute.findMany({
+                where: { projectId },
+                include: {
+                    raisedBy: { select: { id: true, name: true, role: true, image: true } },
+                    milestone: { select: { id: true, name: true } },
+                },
+            }),
+            db_js_1.default.siteDailyReport.findMany({
+                where: { projectId },
+                include: { siteAgent: { select: { id: true, name: true, role: true, image: true } } },
+            }),
+            db_js_1.default.siteInventoryLog.findMany({
+                where: { projectId },
+                include: { siteAgent: { select: { id: true, name: true, role: true, image: true } } },
+            }),
+            db_js_1.default.deliveryVerification.findMany({
+                where: { projectId },
+                include: { siteAgent: { select: { id: true, name: true, role: true, image: true } } },
+            }),
+            db_js_1.default.message.findMany({
+                where: { projectId },
+                include: { sender: { select: { id: true, name: true, role: true, image: true } } },
+                take: 25,
+            }),
+        ]);
+        const feed = [
+            ...milestones.map((item) => ({
+                id: `milestone:${item.id}`,
+                type: "milestone",
+                title: `Milestone: ${item.name}`,
+                body: item.acceptanceCriteria || item.description || "Milestone package created.",
+                status: item.status,
+                projectId,
+                entityId: item.id,
+                entityType: "milestone",
+                createdAt: item.createdAt,
+                actor: item.engineer,
+                metadata: item,
+            })),
+            ...progressPhotos.map((item) => ({
+                id: `progress:${item.id}`,
+                type: "progress",
+                title: item.milestone?.name ? `Progress: ${item.milestone.name}` : "Progress update",
+                body: item.caption || (item.isVideo ? "Video progress uploaded." : "Photo progress uploaded."),
+                status: item.reviewStatus,
+                projectId,
+                entityId: item.id,
+                entityType: "progress_photo",
+                createdAt: item.createdAt,
+                actor: item.uploadedBy,
+                metadata: item,
+            })),
+            ...inspections.map((item) => ({
+                id: `inspection:${item.id}`,
+                type: "inspection",
+                title: item.decision === "approved" ? "Milestone approved" : "Milestone inspection",
+                body: item.notes || item.milestone?.name || "Supervisor inspection recorded.",
+                status: item.decision || "pending",
+                projectId,
+                entityId: item.id,
+                entityType: "inspection",
+                createdAt: item.createdAt,
+                actor: item.supervisor,
+                metadata: item,
+            })),
+            ...transactions.map((item) => ({
+                id: `transaction:${item.id}`,
+                type: "payment",
+                title: `${String(item.type).replace(/_/g, " ")} payment`,
+                body: item.milestone?.name || item.reference || "Payment transaction recorded.",
+                status: item.status,
+                projectId,
+                entityId: item.id,
+                entityType: "transaction",
+                createdAt: item.createdAt,
+                actor: item.actor,
+                metadata: item,
+            })),
+            ...rfqs.map((item) => ({
+                id: `rfq:${item.id}`,
+                type: "rfq",
+                title: `RFQ: ${item.title}`,
+                body: item.milestone?.name || "Supplier quote request published.",
+                status: item.status,
+                projectId,
+                entityId: item.id,
+                entityType: "rfq",
+                createdAt: item.createdAt,
+                actor: item.engineer,
+                metadata: item,
+            })),
+            ...purchaseOrders.map((item) => ({
+                id: `purchase-order:${item.id}`,
+                type: "purchase_order",
+                title: `Purchase order ${item.poNumber}`,
+                body: item.rfq?.title || "Purchase order issued.",
+                status: item.status,
+                projectId,
+                entityId: item.id,
+                entityType: "purchase_order",
+                createdAt: item.createdAt,
+                actor: item.supplier,
+                metadata: item,
+            })),
+            ...deliveries.map((item) => ({
+                id: `delivery:${item.id}`,
+                type: "delivery",
+                title: `Delivery ${String(item.status).replace(/_/g, " ")}`,
+                body: item.purchaseOrder?.poNumber || item.notes || "Material delivery updated.",
+                status: item.status,
+                projectId,
+                entityId: item.id,
+                entityType: "delivery",
+                createdAt: item.createdAt,
+                actor: item.supplier,
+                metadata: item,
+            })),
+            ...disputes.map((item) => ({
+                id: `dispute:${item.id}`,
+                type: "dispute",
+                title: `Dispute: ${item.category}`,
+                body: item.description,
+                status: item.status,
+                projectId,
+                entityId: item.id,
+                entityType: "dispute",
+                createdAt: item.createdAt,
+                actor: item.raisedBy,
+                metadata: item,
+            })),
+            ...dailyReports.map((item) => ({
+                id: `daily-report:${item.id}`,
+                type: "daily_report",
+                title: "Site daily report",
+                body: item.taskProgress,
+                status: "submitted",
+                projectId,
+                entityId: item.id,
+                entityType: "site_daily_report",
+                createdAt: item.createdAt,
+                actor: item.siteAgent,
+                metadata: item,
+            })),
+            ...inventoryLogs.map((item) => ({
+                id: `inventory-log:${item.id}`,
+                type: "inventory_log",
+                title: `Inventory ${item.direction}: ${item.material}`,
+                body: item.notes || `${item.quantity} ${item.unit || ""}`.trim(),
+                status: item.direction,
+                projectId,
+                entityId: item.id,
+                entityType: "site_inventory_log",
+                createdAt: item.createdAt,
+                actor: item.siteAgent,
+                metadata: item,
+            })),
+            ...deliveryVerifications.map((item) => ({
+                id: `delivery-verification:${item.id}`,
+                type: "delivery_verification",
+                title: "Delivery verified",
+                body: item.remarks || item.deliveryCode,
+                status: "verified",
+                projectId,
+                entityId: item.id,
+                entityType: "delivery_verification",
+                createdAt: item.createdAt,
+                actor: item.siteAgent,
+                metadata: item,
+            })),
+            ...messages.map((item) => ({
+                id: `message:${item.id}`,
+                type: "message",
+                title: "Project message",
+                body: item.content,
+                status: "sent",
+                projectId,
+                entityId: item.id,
+                entityType: "message",
+                createdAt: item.createdAt,
+                actor: item.sender,
+                metadata: item,
+            })),
+        ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        return feed;
+    }
     /**
      * ============================================================================
      * 🔧 FUNCTION: updateProject
