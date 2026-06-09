@@ -37,10 +37,14 @@ const canManageMilestone = (milestone, userId, role, body) => {
     if (role === "admin")
         return true;
     if (role === "client") {
-        const onlyRequestsRevision = milestone.project.clientId === userId &&
+        const clientOwnsProject = milestone.project.clientId === userId;
+        const onlyFinancialApproval = clientOwnsProject &&
+            body?.status === "active" &&
+            Object.keys(body).every((key) => ["status"].includes(key));
+        const onlyRequestsRevision = clientOwnsProject &&
             body?.status === "revision_required" &&
             Object.keys(body).every((key) => ["status", "revisionNotes", "clientNotes"].includes(key));
-        return onlyRequestsRevision;
+        return onlyFinancialApproval || onlyRequestsRevision;
     }
     if (role === "engineer")
         return milestone.engineerId === userId;
@@ -73,7 +77,7 @@ const buildUpdateData = (body) => {
         data.status = body.status;
         if (body.status === "paid")
             data.paidAt = new Date();
-        if (body.status === "pending_supervisor")
+        if (body.status === "pending_client_approval")
             data.completedAt = new Date();
     }
     if (body.completedAt !== undefined)
@@ -89,17 +93,17 @@ const validateStatusWorkflow = async (milestone, nextStatus, userRole) => {
     if (normalizedRole === "admin")
         return;
     if (normalizedRole === "engineer") {
-        if (nextStatus !== "pending_supervisor") {
-            throw new Error("Engineers can only submit milestone packages for supervisor review");
+        if (nextStatus !== "pending_client_approval") {
+            throw new Error("Main Contractors can only submit milestone packages for client approval");
         }
         if (!["pending", "active", "revision_required"].includes(milestone.status)) {
-            throw new Error("Only pending or revision-required milestones can be submitted for review");
+            throw new Error("Only pending, active, or revision-required milestones can be submitted for client approval");
         }
         const boqCount = await db_js_1.default.boqItem.count({
             where: { milestoneId: milestone.id },
         });
         if (boqCount < 1) {
-            throw new Error("Add at least one BOQ item before sending the milestone package for review");
+            throw new Error("Add at least one BOQ item before sending the milestone package for client approval");
         }
         return;
     }
@@ -107,17 +111,39 @@ const validateStatusWorkflow = async (milestone, nextStatus, userRole) => {
         if (!["awaiting_client_payment", "revision_required"].includes(nextStatus)) {
             throw new Error("Supervisors can only approve for client payment or request revision");
         }
-        if (milestone.status !== "pending_supervisor") {
-            throw new Error("Only milestones waiting for supervisor review can be inspected");
+        if (milestone.status !== "active" && milestone.status !== "pending_supervisor") {
+            throw new Error("Only active milestones can be inspected");
         }
         return;
     }
     if (normalizedRole === "client") {
-        if (nextStatus !== "revision_required") {
-            throw new Error("Clients can only request revision from this endpoint");
+        if (!["active", "revision_required"].includes(nextStatus)) {
+            throw new Error("Clients can only approve funding or request revision from this endpoint");
         }
-        if (milestone.status !== "awaiting_client_payment") {
-            throw new Error("Client revision is only available after supervisor approval");
+        if (nextStatus === "revision_required" && !["pending_client_approval", "awaiting_client_payment"].includes(milestone.status)) {
+            throw new Error("Client revision is only available during client approval or after supervisor approval");
+        }
+        if (nextStatus === "active") {
+            if (milestone.status !== "pending_client_approval") {
+                throw new Error("Client approval is only available when the milestone package is pending client approval");
+            }
+            const boqItems = await db_js_1.default.boqItem.findMany({
+                where: { milestoneId: milestone.id },
+                select: { totalPrice: true },
+            });
+            const boqTotal = boqItems.reduce((sum, item) => sum.plus(item.totalPrice), new client_1.Prisma.Decimal(0));
+            if (boqTotal.lte(0)) {
+                throw new Error("Milestone BOQ total must be greater than zero before approval");
+            }
+            const escrow = await db_js_1.default.escrowAccount.findUnique({
+                where: { projectId: milestone.projectId },
+            });
+            if (!escrow) {
+                throw new Error("Project wallet was not found. Fund the project wallet before approval");
+            }
+            if (escrow.balance.lt(boqTotal)) {
+                throw new Error(`Insufficient project wallet balance. Required ${boqTotal.toString()} ${escrow.currency}`);
+            }
         }
     }
 };

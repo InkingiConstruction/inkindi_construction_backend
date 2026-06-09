@@ -201,6 +201,17 @@ export const createInspection = async (req: Request, res: Response) => {
       });
     }
 
+    if (
+      decision &&
+      milestone.status !== "active" &&
+      milestone.status !== "pending_supervisor"
+    ) {
+      return res.status(400).json({
+        message:
+          "Only active milestones can be inspected. Client must approve and fund the BOQ package first.",
+      });
+    }
+
     const files = (req.files as Express.Multer.File[]) || [];
     const { signatureFile, photoFiles } = getInspectionFiles(files);
     const [photoUploads, signatureUpload] = await Promise.all([
