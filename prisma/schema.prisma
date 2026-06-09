@@ -49,6 +49,7 @@ enum ProjectStatus {
 enum MilestoneStatus {
   pending
   active
+  pending_client_approval
   pending_supervisor
   revision_required
   awaiting_client_payment

@@ -83,16 +83,27 @@ export const updateMilestone = async (req: Request, res: Response) => {
 
     const milestone = await MilestoneService.updateMilestone(id, req.body, req.user.id, req.user.role);
     if (req.body.status !== undefined) {
+      const isClientApprovalRequest = milestone.status === "pending_client_approval";
       const isReviewRequest = milestone.status === "pending_supervisor";
       await notifyProjectParticipants({
         projectId: milestone.projectId,
         excludeUserId: req.user.id,
-        title: isReviewRequest ? "Milestone and BOQ ready for review" : "Milestone status updated",
-        body: isReviewRequest
-          ? `${milestone.name} was submitted with its BOQ package for supervisor review`
+        title: isClientApprovalRequest
+          ? "Milestone and BOQ ready for client approval"
+          : isReviewRequest
+            ? "Milestone ready for supervisor review"
+            : "Milestone status updated",
+        body: isClientApprovalRequest
+          ? `${milestone.name} was submitted with its BOQ package for client approval`
+          : isReviewRequest
+          ? `${milestone.name} was submitted for supervisor review`
           : `${milestone.name} is now ${milestone.status}`,
         data: {
-          type: isReviewRequest ? "milestone_review_requested" : "milestone_status_updated",
+          type: isClientApprovalRequest
+            ? "milestone_client_approval_requested"
+            : isReviewRequest
+              ? "milestone_review_requested"
+              : "milestone_status_updated",
           milestoneId: milestone.id,
           projectId: milestone.projectId,
           status: milestone.status,
@@ -110,7 +121,12 @@ export const updateMilestone = async (req: Request, res: Response) => {
       error.message.includes("can only") ||
       error.message.includes("Only pending") ||
       error.message.includes("Only milestones") ||
-      error.message.includes("Client revision")
+      error.message.includes("Only active") ||
+      error.message.includes("Client revision") ||
+      error.message.includes("Client approval") ||
+      error.message.includes("Milestone BOQ total") ||
+      error.message.includes("Project wallet") ||
+      error.message.includes("Insufficient project wallet")
     ) {
       return res.status(400).json({ message: error.message });
     }
