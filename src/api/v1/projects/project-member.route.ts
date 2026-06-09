@@ -22,31 +22,31 @@ router.post(
 router.get(
   "/",
   requiredAuth,
-  requireRole("client", "engineer", "supervisor", "supplier", "admin"),
+  requireRole("client", "engineer", "supervisor", "supplier", "site_agent", "admin"),
   getProjectMembers,
 );
 router.post(
   "/:id/accept",
   requiredAuth,
-  requireRole("engineer", "supervisor", "admin"),
+  requireRole("engineer", "supervisor", "site_agent", "admin"),
   acceptProjectMember,
 );
 router.post(
   "/:id/reject",
   requiredAuth,
-  requireRole("engineer", "supervisor", "admin"),
+  requireRole("engineer", "supervisor", "site_agent", "admin"),
   rejectProjectMember,
 );
 router.get(
   "/:id",
   requiredAuth,
-  requireRole("client", "engineer", "supervisor", "supplier", "admin"),
+  requireRole("client", "engineer", "supervisor", "supplier", "site_agent", "admin"),
   getProjectMemberById,
 );
 router.put(
   "/:id",
   requiredAuth,
-  requireRole("client", "engineer", "supervisor", "supplier", "admin"),
+  requireRole("client", "engineer", "supervisor", "supplier", "site_agent", "admin"),
   updateProjectMember,
 );
 router.delete(

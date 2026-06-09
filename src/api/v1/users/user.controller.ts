@@ -35,6 +35,50 @@ const parseJson = (value: unknown) => {
   }
 };
 
+const applyPortfolioUploads = async (
+  roleSpecific: Prisma.InputJsonValue | undefined,
+  files: Express.Multer.File[],
+) => {
+  if (!roleSpecific || typeof roleSpecific !== "object" || Array.isArray(roleSpecific)) {
+    return roleSpecific;
+  }
+
+  const nextRoleSpecific = { ...(roleSpecific as Record<string, unknown>) };
+  const recentJobs = Array.isArray(nextRoleSpecific.recentJobs)
+    ? [...nextRoleSpecific.recentJobs]
+    : [];
+  const gallery = Array.isArray(nextRoleSpecific.gallery)
+    ? [...nextRoleSpecific.gallery]
+    : [];
+  const portfolioFiles = files.filter((file) =>
+    file.fieldname.startsWith("portfolioImage_"),
+  );
+
+  for (const file of portfolioFiles) {
+    const index = Number(file.fieldname.replace("portfolioImage_", ""));
+    if (!Number.isInteger(index) || index < 0) continue;
+
+    const upload = await uploadImage(file, "inkingi/users/portfolio");
+    const existingJob =
+      recentJobs[index] && typeof recentJobs[index] === "object"
+        ? (recentJobs[index] as Record<string, unknown>)
+        : {};
+
+    recentJobs[index] = {
+      ...existingJob,
+      imageUrl: upload.secure_url,
+    };
+
+    gallery[index] = upload.secure_url;
+  }
+
+  return {
+    ...nextRoleSpecific,
+    recentJobs,
+    gallery: gallery.filter(Boolean),
+  } as Prisma.InputJsonValue;
+};
+
 const isKycStatus = (value: unknown): value is KycStatus =>
   typeof value === "string" &&
   Object.values(KycStatus).includes(value as KycStatus);
@@ -177,9 +221,14 @@ export const updateCurrentUser = async (req: Request, res: Response) => {
     const parsedDocuments = parseJson(documents);
     const nextKycStatus = kycStatus === "pending" ? "submitted" : kycStatus;
     const files = (req.files as Express.Multer.File[] | undefined) || [];
-    const uploadedProfileImage = files[0]
-      ? await uploadImage(files[0], "inkingi/users/profile-images")
+    const profileImageFile = files.find((file) => file.fieldname === "image");
+    const uploadedProfileImage = profileImageFile
+      ? await uploadImage(profileImageFile, "inkingi/users/profile-images")
       : null;
+    const nextRoleSpecificValue = await applyPortfolioUploads(
+      parsedRoleSpecific,
+      files,
+    );
 
     const user = await prisma.user.update({
       where: { id: req.user.id },
@@ -196,7 +245,7 @@ export const updateCurrentUser = async (req: Request, res: Response) => {
             ? parseJson(notificationPrefs) || {}
             : undefined,
         roleSpecific:
-          roleSpecific !== undefined ? parsedRoleSpecific || {} : undefined,
+          roleSpecific !== undefined ? nextRoleSpecificValue || {} : undefined,
         registrationDocuments:
           documents !== undefined ? parsedDocuments || [] : undefined,
         selfieUrl:
@@ -204,12 +253,12 @@ export const updateCurrentUser = async (req: Request, res: Response) => {
             ? selfieUrl
               ? String(selfieUrl)
               : null
-            : parsedRoleSpecific &&
-                typeof parsedRoleSpecific === "object" &&
-                !Array.isArray(parsedRoleSpecific) &&
-                "selfieUri" in parsedRoleSpecific
+            : nextRoleSpecificValue &&
+                typeof nextRoleSpecificValue === "object" &&
+                !Array.isArray(nextRoleSpecificValue) &&
+                "selfieUri" in nextRoleSpecificValue
               ? String(
-                  (parsedRoleSpecific as Record<string, unknown>).selfieUri ||
+                  (nextRoleSpecificValue as Record<string, unknown>).selfieUri ||
                     "",
                 )
               : undefined,

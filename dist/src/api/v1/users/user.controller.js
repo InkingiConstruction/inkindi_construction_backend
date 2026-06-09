@@ -32,6 +32,38 @@ const parseJson = (value) => {
         return value;
     }
 };
+const applyPortfolioUploads = async (roleSpecific, files) => {
+    if (!roleSpecific || typeof roleSpecific !== "object" || Array.isArray(roleSpecific)) {
+        return roleSpecific;
+    }
+    const nextRoleSpecific = { ...roleSpecific };
+    const recentJobs = Array.isArray(nextRoleSpecific.recentJobs)
+        ? [...nextRoleSpecific.recentJobs]
+        : [];
+    const gallery = Array.isArray(nextRoleSpecific.gallery)
+        ? [...nextRoleSpecific.gallery]
+        : [];
+    const portfolioFiles = files.filter((file) => file.fieldname.startsWith("portfolioImage_"));
+    for (const file of portfolioFiles) {
+        const index = Number(file.fieldname.replace("portfolioImage_", ""));
+        if (!Number.isInteger(index) || index < 0)
+            continue;
+        const upload = await uploadImage(file, "inkingi/users/portfolio");
+        const existingJob = recentJobs[index] && typeof recentJobs[index] === "object"
+            ? recentJobs[index]
+            : {};
+        recentJobs[index] = {
+            ...existingJob,
+            imageUrl: upload.secure_url,
+        };
+        gallery[index] = upload.secure_url;
+    }
+    return {
+        ...nextRoleSpecific,
+        recentJobs,
+        gallery: gallery.filter(Boolean),
+    };
+};
 const isKycStatus = (value) => typeof value === "string" &&
     Object.values(client_1.KycStatus).includes(value);
 const isKycDocumentType = (value) => typeof value === "string" &&
@@ -137,9 +169,11 @@ const updateCurrentUser = async (req, res) => {
         const parsedDocuments = parseJson(documents);
         const nextKycStatus = kycStatus === "pending" ? "submitted" : kycStatus;
         const files = req.files || [];
-        const uploadedProfileImage = files[0]
-            ? await uploadImage(files[0], "inkingi/users/profile-images")
+        const profileImageFile = files.find((file) => file.fieldname === "image");
+        const uploadedProfileImage = profileImageFile
+            ? await uploadImage(profileImageFile, "inkingi/users/profile-images")
             : null;
+        const nextRoleSpecificValue = await applyPortfolioUploads(parsedRoleSpecific, files);
         const user = await db_js_1.default.user.update({
             where: { id: req.user.id },
             data: {
@@ -153,17 +187,17 @@ const updateCurrentUser = async (req, res) => {
                 notificationPrefs: notificationPrefs !== undefined
                     ? parseJson(notificationPrefs) || {}
                     : undefined,
-                roleSpecific: roleSpecific !== undefined ? parsedRoleSpecific || {} : undefined,
+                roleSpecific: roleSpecific !== undefined ? nextRoleSpecificValue || {} : undefined,
                 registrationDocuments: documents !== undefined ? parsedDocuments || [] : undefined,
                 selfieUrl: selfieUrl !== undefined
                     ? selfieUrl
                         ? String(selfieUrl)
                         : null
-                    : parsedRoleSpecific &&
-                        typeof parsedRoleSpecific === "object" &&
-                        !Array.isArray(parsedRoleSpecific) &&
-                        "selfieUri" in parsedRoleSpecific
-                        ? String(parsedRoleSpecific.selfieUri ||
+                    : nextRoleSpecificValue &&
+                        typeof nextRoleSpecificValue === "object" &&
+                        !Array.isArray(nextRoleSpecificValue) &&
+                        "selfieUri" in nextRoleSpecificValue
+                        ? String(nextRoleSpecificValue.selfieUri ||
                             "")
                         : undefined,
                 kycStatus: nextKycStatus,
