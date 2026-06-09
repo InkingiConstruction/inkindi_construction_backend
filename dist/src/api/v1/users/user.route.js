@@ -14,6 +14,7 @@ router.patch("/me/role", auth_middleware_1.requiredAuth, user_controller_1.updat
 router.get("/engineers", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "admin"), user_controller_1.getEngineers);
 router.get("/supervisors", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "admin"), user_controller_1.getSupervisors);
 router.get("/suppliers", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supplier", "admin"), user_controller_1.getSuppliers);
+router.get("/site-agents", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("client", "engineer", "supervisor", "admin"), user_controller_1.getSiteAgents);
 router.get("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("admin"), user_controller_1.getUserById);
 router.put("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("admin"), upload_middleware_1.uploadImages, user_controller_1.updateUser);
 router.delete("/:id", auth_middleware_1.requiredAuth, (0, role_middleware_1.requireRole)("admin"), user_controller_1.deleteUser);

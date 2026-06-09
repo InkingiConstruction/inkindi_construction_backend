@@ -144,8 +144,8 @@ class ProjectService {
      */
     static async createProject(userId, body, files) {
         const { name, description, category, status, budget, currency, address, area, upi, ownerName, landUse, gpsBoundary, architecturalPlans, startDate, endDate, engineerId, } = body;
-        if (!name || !budget) {
-            throw new Error("Missing required fields (name, budget)");
+        if (!name) {
+            throw new Error("Missing required field (name)");
         }
         const uploaded = await uploadProjectFiles(files);
         const bodyArchitecturalPlans = parseJsonField(architecturalPlans);
@@ -156,7 +156,7 @@ class ProjectService {
                     description,
                     category: category || undefined,
                     status,
-                    budget,
+                    budget: budget !== undefined && budget !== "" ? budget : "0",
                     currency,
                     address,
                     area: area !== undefined && area !== "" ? area : undefined,

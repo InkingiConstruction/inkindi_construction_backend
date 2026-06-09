@@ -4,6 +4,7 @@ import {
   deleteUser,
   getEngineers,
   getCurrentUser,
+  getSiteAgents,
   getSuppliers,
   getSupervisors,
   getUserById,
@@ -40,6 +41,12 @@ router.get(
   requiredAuth,
   requireRole("client", "engineer", "supplier", "admin"),
   getSuppliers,
+);
+router.get(
+  "/site-agents",
+  requiredAuth,
+  requireRole("client", "engineer", "supervisor", "admin"),
+  getSiteAgents,
 );
 router.get("/:id", requiredAuth, requireRole("admin"), getUserById);
 router.put(

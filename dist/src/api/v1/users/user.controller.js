@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteUser = exports.updateUser = exports.getUserById = exports.getUsers = exports.createUser = exports.getSuppliers = exports.getSupervisors = exports.getEngineers = exports.updateCurrentUserRole = exports.updateCurrentUser = exports.getCurrentUser = void 0;
+exports.deleteUser = exports.updateUser = exports.getUserById = exports.getUsers = exports.createUser = exports.getSiteAgents = exports.getSuppliers = exports.getSupervisors = exports.getEngineers = exports.updateCurrentUserRole = exports.updateCurrentUser = exports.getCurrentUser = void 0;
 const client_1 = require("@prisma/client");
 const db_js_1 = __importDefault(require("../../../config/db.js"));
 const password_js_1 = require("../../../utils/password.js");
@@ -282,6 +282,16 @@ const getSuppliers = async (_req, res) => {
     }
 };
 exports.getSuppliers = getSuppliers;
+const getSiteAgents = async (_req, res) => {
+    try {
+        return await getUsersByRole("site_agent", res);
+    }
+    catch (error) {
+        console.error("Get site agents error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+exports.getSiteAgents = getSiteAgents;
 const createUser = async (req, res) => {
     try {
         const { id, name, email, emailVerified, image, role, username, displayUsername, phoneNumber, phoneNumberVerified, fcmToken, notificationPrefs, roleSpecific, registrationDocuments, selfieUrl, password, } = req.body;

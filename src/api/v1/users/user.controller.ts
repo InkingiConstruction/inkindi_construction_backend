@@ -339,6 +339,15 @@ export const getSuppliers = async (_req: Request, res: Response) => {
   }
 };
 
+export const getSiteAgents = async (_req: Request, res: Response) => {
+  try {
+    return await getUsersByRole("site_agent", res);
+  } catch (error) {
+    console.error("Get site agents error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 export const createUser = async (req: Request, res: Response) => {
   try {
     const {

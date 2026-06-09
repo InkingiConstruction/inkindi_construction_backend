@@ -177,8 +177,8 @@ export class ProjectService {
       engineerId,
     } = body;
 
-    if (!name || !budget) {
-      throw new Error("Missing required fields (name, budget)");
+    if (!name) {
+      throw new Error("Missing required field (name)");
     }
 
     const uploaded = await uploadProjectFiles(files);
@@ -191,7 +191,7 @@ export class ProjectService {
           description,
           category: category || undefined,
           status,
-          budget,
+          budget: budget !== undefined && budget !== "" ? budget : "0",
           currency,
           address,
           area: area !== undefined && area !== "" ? area : undefined,
